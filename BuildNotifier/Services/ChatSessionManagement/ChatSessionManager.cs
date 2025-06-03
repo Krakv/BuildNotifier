@@ -92,10 +92,9 @@ namespace BuildNotifier.Services.ChatSessionManagement
             if (_activeSessions.TryRemove(chatId, out var sessionWithCancellation))
             {
                 var session = sessionWithCancellation.Session;
-                var cancellationTokenSource = sessionWithCancellation.CancellationTokenSource;
                 try
                 {
-                    cancellationTokenSource.Cancel();
+                    sessionWithCancellation.CancelAndDispose();
                     await session.StopAsync();
                 }
                 finally
