@@ -12,12 +12,12 @@ namespace BuildNotifier.Services.Interfaces
         /// <summary>
         /// Событие, возникающее при необходимости отправить сообщение
         /// </summary>
-        event Action<string> OnSendMessage;
+        event Action<string>? OnSendMessage;
 
         /// <summary>
-        /// Событие, возникающее при завершении сессии
+        /// Событие, возникающее при инициировании завершения сессии изнутри
         /// </summary>
-        event Action<string> OnSessionEnded;
+        event Action<string>? OnSessionEnded;
 
         /// <summary>
         /// Идентификатор чата, связанного с сессией

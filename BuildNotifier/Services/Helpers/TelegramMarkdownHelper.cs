@@ -1,9 +1,10 @@
-﻿using System.Text;
+﻿using BuildNotifier.Data.Models.BambooWebhookPayload;
+using System.Text;
 
-namespace BuildNotifier.Services.External
+namespace BuildNotifier.Services.Helpers
 {
     /// <summary>
-    /// Вспомогательный класс для работы с MarkdownV2 разметкой в Telegram
+    /// Вспомогательный класс для форматирования сообщения для отправки в телеграм
     /// </summary>
     public static class TelegramMarkdownHelper
     {

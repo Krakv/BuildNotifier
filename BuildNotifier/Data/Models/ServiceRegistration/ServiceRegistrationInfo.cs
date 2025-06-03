@@ -3,36 +3,36 @@
 namespace BuildNotifier.Data.Models.ServiceRegistration
 {
     /// <summary>
-    /// Представляет информацию о регистрации сервиса в системе.
+    /// Представляет информацию о регистрации сервиса в командном менеджере.
     /// </summary>
     public class ServiceRegistrationInfo
     {
         /// <summary>
-        /// Получает или задает название сервиса.
+        /// Задает название сервиса.
         /// </summary>
         /// <value>Название сервиса в виде строки.</value>
         [JsonPropertyName("serviceName")]
-        public string ServiceName { get; set; } = string.Empty;
+        public required string ServiceName { get; set; } = string.Empty;
 
         /// <summary>
-        /// Получает или задает топик, который сервис потребляет (подписывается на сообщения).
+        /// Задает топик, который сервис потребляет (подписывается на сообщения).
         /// </summary>
         /// <value>Имя топика для потребления сообщений.</value>
         [JsonPropertyName("consumeTopic")]
-        public string ConsumeTopic { get; set; } = string.Empty;
+        public required string ConsumeTopic { get; set; } = string.Empty;
 
         /// <summary>
-        /// Получает или задает топик, в который сервис публикует сообщения.
+        /// Задает топик, в который сервис публикует сообщения.
         /// </summary>
         /// <value>Имя топика для публикации сообщений.</value>
         [JsonPropertyName("produceTopic")]
-        public string ProduceTopic { get; set; } = string.Empty;
+        public required string ProduceTopic { get; set; } = string.Empty;
 
         /// <summary>
-        /// Получает или задает сервисное сообщение.
+        /// Задает сервисное сообщение.
         /// </summary>
         /// <value>Дополнительная информация в виде строки.</value>
         [JsonPropertyName("message")]
-        public string Message { get; set; } = string.Empty;
+        public required string Message { get; set; } = string.Empty;
     }
 }

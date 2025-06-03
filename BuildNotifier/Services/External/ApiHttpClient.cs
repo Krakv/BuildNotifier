@@ -1,4 +1,5 @@
 ﻿using BuildNotifier.Data.Models.HTTPClient;
+using System.Net.Http.Json;
 
 namespace BuildNotifier.Services.External
 {
@@ -35,6 +36,12 @@ namespace BuildNotifier.Services.External
 
                 var response = await _httpClient.PostAsJsonAsync(apiUrl, request);
 
+                if ((int)response.StatusCode / 100 == 4 || (int)response.StatusCode / 100 == 5)
+                {
+                    _logger.LogWarning("API вернул статус {StatusCode} для пользователя {Username}", response.StatusCode, username);
+                    return string.Empty;
+                }
+
                 response.EnsureSuccessStatusCode();
 
                 return await response.Content.ReadAsStringAsync();
@@ -42,7 +49,7 @@ namespace BuildNotifier.Services.External
             catch (HttpRequestException ex)
             {
                 _logger.LogError(ex, "Ошибка при выполнении HTTP-запроса");
-                throw;
+                return string.Empty;
             }
             catch (Exception ex)
             {

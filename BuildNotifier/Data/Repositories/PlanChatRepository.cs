@@ -12,17 +12,22 @@ namespace BuildNotifier.Data.Repositories
     {
         private readonly IDbContextFactory<AppDbContext> _factory;
 
+        /// <summary>
+        /// Инициализирует новый экземпляр <see cref="PlanChatRepository"/>.
+        /// </summary>
+        /// <param name="factory">Фабрика для создания контекста БД (AppDbContext). Позволяет управлять подключениями и жизненным циклом контекста.</param>
         public PlanChatRepository(IDbContextFactory<AppDbContext> factory)
         {
             _factory = factory;
         }
 
-        public bool AddPlanChat(string planName, string chatId)
+        /// <inheritdoc cref="IPlanChatRepository.AddPlanChat(string, string)"/>
+        public async Task<bool> AddPlanChatAsync(string planName, string chatId)
         {
-            using var _db = _factory.CreateDbContext();
+            using var _db = await _factory.CreateDbContextAsync();
 
-            bool linkExists = _db.PlanChats
-                    .Any(pc => pc.PlanName == planName && pc.ChatId == chatId);
+            bool linkExists = await _db.PlanChats
+                    .AnyAsync(pc => pc.PlanName == planName && pc.ChatId == chatId);
 
             if (!linkExists)
             {
@@ -31,56 +36,60 @@ namespace BuildNotifier.Data.Repositories
                     PlanName = planName,
                     ChatId = chatId
                 });
-                return _db.SaveChanges() > 0;
+                return await _db.SaveChangesAsync() > 0;
             }
             return false;
         }
 
-        public bool DeleteAllPlansFromChat(string chatId)
+        /// <inheritdoc cref="IPlanChatRepository.DeleteAllPlansFromChat(string)"/>
+        public async Task<bool> DeleteAllPlansFromChatAsync(string chatId)
         {
-            using var _db = _factory.CreateDbContext();
-            var planChats = _db.PlanChats
+            using var _db = await _factory.CreateDbContextAsync();
+            var planChats = await _db.PlanChats
                     .Where(pc => pc.ChatId == chatId)
-                    .ToList();
+                    .ToListAsync();
 
             if (planChats.Any())
             {
                 _db.PlanChats.RemoveRange(planChats);
-                return _db.SaveChanges() > 0;
+                return await _db.SaveChangesAsync() > 0;
             }
             return false;
         }
 
-        public bool DeletePlanChat(string planName, string chatId)
+        /// <inheritdoc cref="IPlanChatRepository.DeletePlanChat(string, string)"/>
+        public async Task<bool> DeletePlanChatAsync(string planName, string chatId)
         {
-            using var _db = _factory.CreateDbContext();
-            var planChat = _db.PlanChats
-                .FirstOrDefault(pc => pc.PlanName == planName && pc.ChatId == chatId);
+            using var _db = await _factory.CreateDbContextAsync();
+            var planChat = await _db.PlanChats
+                .FirstOrDefaultAsync(pc => pc.PlanName == planName && pc.ChatId == chatId);
 
             if (planChat != null)
             {
                 _db.PlanChats.Remove(planChat);
-                return _db.SaveChanges() > 0;
+                return await _db.SaveChangesAsync() > 0;
             }
             return false;
         }
 
-        public List<string> GetChatIds(string planName)
+        /// <inheritdoc cref="IPlanChatRepository.GetChatIds(string)"/>
+        public async Task<List<string>> GetChatIdsAsync(string planName)
         {
-            using var _db = _factory.CreateDbContext();
-            return _db.PlanChats
+            using var _db = await _factory.CreateDbContextAsync();
+            return await _db.PlanChats
                 .Where(pc => pc.PlanName == planName)
                 .Select(pc => pc.ChatId)
-                .ToList();
+                .ToListAsync();
         }
 
-        public List<string> GetPlanNames(string chatId)
+        /// <inheritdoc cref="IPlanChatRepository.GetPlanNames(string)"/>
+        public async Task<List<string>> GetPlanNamesAsync(string chatId)
         {
-            using var _db = _factory.CreateDbContext();
-            return _db.PlanChats
+            using var _db = await _factory.CreateDbContextAsync();
+            return await _db.PlanChats
                 .Where(pc => pc.ChatId == chatId)
                 .Select(pc => pc.PlanName)
-                .ToList();
+                .ToListAsync();
         }
     }
 }

@@ -8,33 +8,37 @@ namespace BuildNotifier.Data.Models.ServiceRegistration
     public class ServiceCommand
     {
         /// <summary>
-        /// Получает или задает имя команды.
+        /// Задает имя команды.
         /// </summary>
         /// <value>Уникальное имя команды.</value>
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
         /// <summary>
-        /// Получает или задает описание команды.
+        /// Задает описание команды.
         /// </summary>
         /// <value>Подробное описание функциональности команды.</value>
         [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
 
         /// <summary>
-        /// Получает или задает действие с командой.
+        /// Задает действие с командой при регистрации.
         /// </summary>
         /// <value>Обозначает, что нужно делать с командой в командном менеджере (ADD, REMOVE, NONE).</value>
         [JsonPropertyName("action")]
         public string Action { get; set; } = string.Empty;
 
         /// <summary>
-        /// Получает или задает права, необходимые для выполнения команды.
+        /// Задает права пользователя, необходимые для выполнения команды.
         /// </summary>
         /// <value>Строка с описанием требуемых прав (ANONYMOUS, GROUP, REGISTERED).</value>
         [JsonPropertyName("right")]
         public string Right { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Задает доступность сервиса в личных и групповых чатах.
+        /// </summary>
+        /// <value>Строка с описанием доступности сервиса (USER, GROUP, ALWAYS)</value>
         [JsonPropertyName("availability")]
         public string Availability {  get; set; } = string.Empty;
     }

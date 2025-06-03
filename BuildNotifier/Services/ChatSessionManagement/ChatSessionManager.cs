@@ -1,15 +1,17 @@
 ﻿using BuildNotifier.Data.Models.Bot;
+using BuildNotifier.Services.External;
 using BuildNotifier.Services.Interfaces;
 using System.Collections.Concurrent;
+using System.Text.Json;
 
-namespace BuildNotifier.Services.External
+namespace BuildNotifier.Services.ChatSessionManagement
 {
     /// <summary>
     /// Менеджер для управления жизненным циклом сессий в чатах
     /// </summary>
     public class ChatSessionManager
     {
-        private readonly ConcurrentDictionary<string, IChatSession> _activeSessions = new();
+        private readonly ConcurrentDictionary<string, ChatSessionWithCancellation> _activeSessions = new();
         private readonly IChatSessionFactory _sessionFactory;
         private readonly ILogger<ChatSessionManager> _logger;
         private readonly MessageProducer _messageProducer;
@@ -37,12 +39,14 @@ namespace BuildNotifier.Services.External
         /// </remarks>
         public async Task ProcessMessageAsync(BotMessage message, CancellationToken cancellationToken)
         {
-            if (_activeSessions.TryGetValue(message.Data.ChatId, out var session))
+            if (_activeSessions.TryGetValue(message.Data.ChatId, out var sessionWithCancellation))
             {
+                var session = sessionWithCancellation.Session;
                 await session.ProcessMessageAsync(message);
             }
             else
             {
+                _messageProducer.SendRequest(GetNonexistentSessionResponse(message));
                 _logger.LogWarning($"Нет активной сессии для чата: {message.Data.ChatId}.");
             }
         }
@@ -69,9 +73,12 @@ namespace BuildNotifier.Services.External
                 _ = StopSessionAsync(id);
             };
 
-            if (_activeSessions.TryAdd(message.Data.ChatId, session))
+            ChatSessionWithCancellation chatSessionWithCancellation = new(session);
+
+            if (_activeSessions.TryAdd(message.Data.ChatId, chatSessionWithCancellation))
             {
-                await session.StartAsync(cancellationToken, message);
+                var token = chatSessionWithCancellation.CancellationTokenSource.Token;
+                await session.StartAsync(token, message);
                 _logger.LogInformation($"Запущена сессия для чата: {message.Data.ChatId}");
             }
         }
@@ -82,10 +89,13 @@ namespace BuildNotifier.Services.External
         /// <param name="chatId">Идентификатор чата</param>
         public async Task StopSessionAsync(string chatId)
         {
-            if (_activeSessions.TryRemove(chatId, out var session))
+            if (_activeSessions.TryRemove(chatId, out var sessionWithCancellation))
             {
+                var session = sessionWithCancellation.Session;
+                var cancellationTokenSource = sessionWithCancellation.CancellationTokenSource;
                 try
                 {
+                    cancellationTokenSource.Cancel();
                     await session.StopAsync();
                 }
                 finally
@@ -97,6 +107,30 @@ namespace BuildNotifier.Services.External
                 }
                 _logger.LogInformation($"Завершена сессия для чата: {chatId}");
             }
+        }
+
+
+        /// <summary>
+        /// Создание ответа на попытку обращения к несуществующей сессии
+        /// </summary>
+        /// <param name="botMessage">Инициирующее сообщение</param>
+        /// <returns>Сериализованное сообщение в формате <see cref="BotMessage"/></returns>
+        public static string GetNonexistentSessionResponse(BotMessage botMessage)
+        {
+            var responseMessage = new BotMessage
+            {
+                Method = "sendMessage",
+                Status = "COMPLETED",
+                KafkaMessageId = botMessage.KafkaMessageId,
+                Data = new()
+                {
+                    Text = "Работа сервиса завершена.",
+                    ChatId = botMessage.Data.ChatId,
+                    Method = "sendMessage"
+                }
+            };
+
+            return JsonSerializer.Serialize(responseMessage);
         }
     }
 }

@@ -1,6 +1,6 @@
 ﻿using BuildNotifier.Services.Interfaces;
 
-namespace BuildNotifier.Services.External
+namespace BuildNotifier.Services.ChatSessionManagement
 {
     /// <summary>
     /// Фабрика для создания сессий уведомлений

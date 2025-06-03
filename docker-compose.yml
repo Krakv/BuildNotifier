@@ -1,0 +1,12 @@
+services:
+  build-notifier:
+    build: .
+    container_name: build-notifier
+    ports:
+      - "8082:8080"
+    networks:
+      - dev_command-manager-network
+
+networks:
+  dev_command-manager-network:
+    external: true

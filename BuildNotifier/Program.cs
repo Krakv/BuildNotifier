@@ -1,12 +1,19 @@
 using BuildNotifier.Data.Context;
 using BuildNotifier.Data.Models.HTTPClient;
+using BuildNotifier.Data.Models.Kafka;
 using BuildNotifier.Data.Models.ServiceRegistration;
 using BuildNotifier.Data.Repositories;
 using BuildNotifier.Services;
+using BuildNotifier.Services.ChatSessionManagement;
 using BuildNotifier.Services.External;
 using BuildNotifier.Services.Interfaces;
+using BuildNotifier.Services.Startup;
 using Confluent.Kafka;
 using System.Collections.Concurrent;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Unicode;
 
 var preBuilderConfig = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
@@ -14,7 +21,7 @@ var preBuilderConfig = new ConfigurationBuilder()
     .AddEnvironmentVariables()
     .Build();
 
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(300));
+using var cts = new CancellationTokenSource();
 var cancellationToken = cts.Token;
 ServiceRegistrationInfo serviceRegistrationInfo;
 
@@ -24,18 +31,25 @@ try
 }
 catch (OperationCanceledException)
 {
-    Console.WriteLine("Регистрация сервиса отменена или превышен таймаут");
+    Console.WriteLine("Регистрация сервиса отменена");
     throw;
 }
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = Host.CreateDefaultBuilder(args)
+    .ConfigureServices((hostContext, services) =>
+    {
+        ConfigureServices(services, serviceRegistrationInfo, hostContext.Configuration);
+    });
 
-ConfigureServices(builder, serviceRegistrationInfo);
+var host = builder.Build();
 
-var app = builder.Build();
-ConfigureMiddleware(app);
+using (var scope = host.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    dbContext.Database.EnsureCreated();
+}
 
-app.Run();
+await host.RunAsync(cancellationToken);
 
 static async Task<ServiceRegistrationInfo> RegisterServiceAsync(IConfiguration preBuilderConfig, CancellationToken cancellationToken)
 {
@@ -50,75 +64,44 @@ static async Task<ServiceRegistrationInfo> RegisterServiceAsync(IConfiguration p
         .Get<ProducerConfig>();
 
     if (serviceDescription == null)
-        throw new InvalidOperationException("No configuration found for TelegramBotService in appsettings.json");
+        throw new InvalidOperationException("Конфигурация для TelegramBotService в appsettings.json не найдена");
     if (consumerConfig == null)
-        throw new InvalidOperationException("No configuration found for ConsumerConfig in appsettings.json");
+        throw new InvalidOperationException("Конфигурация ConsumerConfig в appsettings.json не найдена");
     if (producerConfig == null)
-        throw new InvalidOperationException("No configuration found for ProducerConfig in appsettings.json");
+        throw new InvalidOperationException("Конфигурация ProducerConfig в appsettings.json не найдена");
 
     var serviceRegistrationInfo = await new ServiceRegistration(serviceDescription, producerConfig, consumerConfig)
         .RegisterService(cancellationToken);
 
-    return serviceRegistrationInfo ?? throw new InvalidOperationException("No service registration data received.");
+    return serviceRegistrationInfo ?? throw new InvalidOperationException("Данные о регистрации сервиса не получены.");
 }
 
-static void ConfigureServices(WebApplicationBuilder builder, ServiceRegistrationInfo serviceRegistrationInfo)
+static void ConfigureServices(IServiceCollection services, ServiceRegistrationInfo serviceRegistrationInfo, IConfiguration configuration)
 {
-    builder.Services.AddControllers();
-    builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
-
-    // Конфигурации
-    builder.Services.Configure<ServiceRegistrationInfo>(builder.Configuration.GetSection("TelegramBotService"));
-    builder.Services.Configure<ConsumerConfig>(builder.Configuration.GetSection("Kafka:ConsumerConfig:Default"));
-    builder.Services.Configure<ProducerConfig>(builder.Configuration.GetSection("Kafka:ProducerConfig:Default"));
-    builder.Services.Configure<HttpUrl>(builder.Configuration.GetSection("Kafka:HttpUrl"));
-
-    // База данных
-    builder.Services.AddDbContextFactory<AppDbContext>();
-
-    // Сервисы
-    builder.Services.AddSingleton<IChatSessionFactory, NotifierSubscriptionFactory>();
-    builder.Services.AddSingleton<ChatSessionManager>();
-    builder.Services.AddScoped<IChatSession, NotifierSubscriptionService>();
-    builder.Services.AddSingleton<PlanChatRepository>();
-    builder.Services.AddSingleton(new ServiceDescription());
-    builder.Services.AddSingleton<ConcurrentDictionary<string, string>>();
-    builder.Services.AddSingleton(serviceRegistrationInfo);
-    builder.Services.AddSingleton<TelegramNotificationService>();
-    builder.Services.AddSingleton<MessageProducer>();
-
-    builder.Services.AddHostedService<CommandManagerListenerService>();
-    builder.Services.AddHttpClient<ApiHttpClient>();
-
-    // Логирование
-    builder.Logging.ClearProviders();
-    builder.Logging.AddConsole();
-
-    // CORS
-    builder.Services.AddCors(options =>
+    services.Configure<ServiceRegistrationInfo>(configuration.GetSection("TelegramBotService"));
+    services.Configure<ConsumerConfig>(configuration.GetSection("Kafka:ConsumerConfig:Default"));
+    services.Configure<ProducerConfig>(configuration.GetSection("Kafka:ProducerConfig:Default"));
+    services.Configure<TelegramNicknameService>(configuration.GetSection("TelegramNicknameService"));
+    services.Configure<KafkaTopics>(configuration.GetSection("Kafka:Topics"));
+    services.Configure<JsonSerializerOptions>(options =>
     {
-        options.AddPolicy("AllowAll", policy =>
-        {
-            policy.AllowAnyOrigin()
-                  .AllowAnyMethod()
-                  .AllowAnyHeader();
-        });
+        options.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
+        options.WriteIndented = true; 
     });
 
-    builder.WebHost.UseUrls("http://0.0.0.0:5000", "https://0.0.0.0:5001");
-}
+    services.AddDbContextFactory<AppDbContext>();
 
-static void ConfigureMiddleware(WebApplication app)
-{
-    app.UseCors("AllowAll");
+    services.AddSingleton<IChatSessionFactory, NotifierSubscriptionFactory>();
+    services.AddSingleton<ChatSessionManager>();
+    services.AddSingleton<PlanChatRepository>();
+    services.AddSingleton(new ServiceDescription());
+    services.AddSingleton<ConcurrentDictionary<string, string>>();
+    services.AddSingleton(serviceRegistrationInfo);
+    services.AddSingleton<TelegramNotificationService>();
+    services.AddSingleton<MessageProducer>();
+    services.AddSingleton<SubscriptionService>();
+    services.AddScoped<IChatSession, SubscriptionWithSessionService>();
 
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI();
-    }
-
-    app.UseAuthorization();
-    app.MapControllers();
+    services.AddHostedService<CommandManagerListenerService>();
+    services.AddHttpClient<ApiHttpClient>();
 }

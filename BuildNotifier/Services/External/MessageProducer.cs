@@ -50,7 +50,9 @@ namespace BuildNotifier.Services.External
                     _serviceRegistrationInfo.ProduceTopic,
                     new Message<Null, string> { Value = message });
 
-                _logger.LogInformation($"[{_serviceRegistrationInfo.ProduceTopic}] Сообщение отправлено : {result.Message.Value}");
+                _logger.LogInformation("[{Topic}] Сообщение отправлено: {Message}",
+                    _serviceRegistrationInfo.ProduceTopic,
+                    result.Message.Value);
             }
             catch (ProduceException<Null, string> ex)
             {

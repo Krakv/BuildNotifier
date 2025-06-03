@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace BuildNotifier.Services.External
+namespace BuildNotifier.Services.Utilites
 {
     /// <summary>
     /// Класс для безопасного парсинга JSON-данных

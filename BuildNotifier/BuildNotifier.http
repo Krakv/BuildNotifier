@@ -1,6 +1,0 @@
-@BuildNotifier_HostAddress = http://localhost:5130
-
-GET {{BuildNotifier_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

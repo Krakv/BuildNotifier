@@ -1,12 +1,14 @@
-﻿using BuildNotifier.Data.Models.BambooWebhookPayload;
-using BuildNotifier.Data.Models.Bot;
-using BuildNotifier.Data.Models.ServiceRegistration;
-using BuildNotifier.Data.Models.HTTPClient;
-using BuildNotifier.Data.Repositories;
+﻿using static BuildNotifier.Services.Helpers.TelegramMarkdownHelper;
 using BuildNotifier.Services.External;
-using Confluent.Kafka;
+using BuildNotifier.Data.Models.BambooWebhookPayload;
+using BuildNotifier.Data.Models.Bot;
+using BuildNotifier.Data.Models.HTTPClient;
+using BuildNotifier.Data.Models.ServiceRegistration;
+using BuildNotifier.Data.Repositories;
 using Microsoft.Extensions.Options;
+using System.Text;
 using System.Text.Json;
+using BuildNotifier.Services.Helpers;
 
 namespace BuildNotifier.Services
 {
@@ -15,12 +17,11 @@ namespace BuildNotifier.Services
     /// </summary>
     public class TelegramNotificationService
     {
-        private readonly ProducerConfig _producerConfig;
-        private readonly ServiceRegistrationInfo _serviceRegistrationInfo;
+        private readonly JsonSerializerOptions _jsonOptions;
         private readonly PlanChatRepository _planChatRepository;
         private readonly ApiHttpClient _apiHttpClient;
         private readonly ILogger<TelegramNotificationService> _logger;
-        private readonly IProducer<Null, string> _producer;
+        private readonly MessageProducer _messageProducer;
         private readonly string _apiUrl;
 
         /// <summary>
@@ -33,20 +34,19 @@ namespace BuildNotifier.Services
         /// <param name="logger">Логгер для вывода информации о внутренних процессах</param>
         /// <param name="apiHttpClient">Клиент для отправки запроса по http</param>
         public TelegramNotificationService(
-            IOptions<ProducerConfig> producerOptions,
-            IOptions<HttpUrl> httpOptions,
-            ServiceRegistrationInfo serviceRegistrationInfo,
+            MessageProducer messageProducer,
+            IOptions<TelegramNicknameService> apiOptions,
+            IOptions<JsonSerializerOptions> jsonOptions,
             PlanChatRepository planChatRepository,
             ILogger<TelegramNotificationService> logger,
             ApiHttpClient apiHttpClient)
         {
-            _producerConfig = producerOptions.Value;
-            _serviceRegistrationInfo = serviceRegistrationInfo;
+            _jsonOptions = jsonOptions.Value;
+            _messageProducer = messageProducer;
             _planChatRepository = planChatRepository;
             _logger = logger;
             _apiHttpClient = apiHttpClient;
-            _apiUrl = httpOptions.Value.Url;
-            _producer = new ProducerBuilder<Null, string>(_producerConfig).Build();
+            _apiUrl = apiOptions.Value.ApiUrl;
         }
 
         /// <summary>
@@ -61,8 +61,8 @@ namespace BuildNotifier.Services
                 return;
             }
 
-            var buildKey = BambooKeyValidator.TrimBuildNumber(webhookData.Build.BuildResultKey);
-            var chatIds = _planChatRepository.GetChatIds(buildKey);
+            var buildKey = BambooValidator.TrimToProjectPlanName(webhookData.Build.BuildPlanName);
+            var chatIds = await _planChatRepository.GetChatIdsAsync(buildKey);
 
             if (!chatIds.Any())
             {
@@ -70,27 +70,25 @@ namespace BuildNotifier.Services
                 return;
             }
 
-            webhookData = await ReplaceLoginWithTelegramUsername(webhookData);
-
-            var messageText = BuildNotificationMessage(webhookData);
+            var messageText = await BuildNotificationMessage(webhookData);
 
             foreach (var chatId in chatIds)
             {
                 var botMessage = CreateBotMessage(chatId, messageText);
-                await SendKafkaNotificationAsync(botMessage);
+                SendKafkaNotification(botMessage);
             }
         }
 
-        private string BuildNotificationMessage(BuildWebhook webhookData)
+        private async Task<string> BuildNotificationMessage(BuildWebhook webhookData)
         {
-            return $"""
-                🚨*Сборка упала {TelegramMarkdownHelper.EscapeMarkdownV2(webhookData.Build.BuildResultKey)}*
-                **>👤Автор коммита: {TelegramMarkdownHelper.EscapeMarkdownV2(webhookData.Commit.Author)}
-                >⏰Ветка: `{TelegramMarkdownHelper.EscapeMarkdownV2(webhookData.BranchName)}`
-                >🔗Репозиторий: {TelegramMarkdownHelper.EscapeMarkdownV2(webhookData.RepositoryUrl)}
-                >📌Хеш коммита: `{TelegramMarkdownHelper.EscapeMarkdownV2(webhookData.Commit.Hash)}`
-                >💬Комментарий коммита: `{TelegramMarkdownHelper.EscapeMarkdownV2(webhookData.Commit.Message)}` ||
-                """;
+            var authorLogin = BambooValidator.RemoveEmail(webhookData.Commit.Author);
+            var username = await FindTelegramUsernameByLogin(authorLogin);
+            if (username != "")
+            {
+                webhookData.Commit.Author = "@" + username;
+            }
+
+            return FormatTelegramMessage(webhookData);
         }
 
         private BotMessage CreateBotMessage(string chatId, string messageText)
@@ -110,35 +108,47 @@ namespace BuildNotifier.Services
             };
         }
 
-        private async Task SendKafkaNotificationAsync(BotMessage message)
+        private void SendKafkaNotification(BotMessage message)
         {
-            try
-            {
-                var json = JsonSerializer.Serialize(message);
-                var kafkaMessage = new Message<Null, string> { Value = json };
-
-                var deliveryResult = await _producer.ProduceAsync(
-                    _serviceRegistrationInfo.ProduceTopic,
-                    kafkaMessage);
-
-                _logger.LogDebug($"[{_serviceRegistrationInfo.ProduceTopic}] Сообщение доставлено: {deliveryResult.Message.Value}");
-            }
-            catch (ProduceException<Null, string> ex)
-            {
-                _logger.LogError(ex, $"[{_serviceRegistrationInfo.ProduceTopic}] Не удалось доставить сообщение в Kafka");
-            }
+            var json = JsonSerializer.Serialize(message, _jsonOptions);
+            _messageProducer.SendRequest(json);
         }
 
-        private async Task<BuildWebhook> ReplaceLoginWithTelegramUsername(BuildWebhook buildWebhook)
+        private async Task<string> FindTelegramUsernameByLogin(string login)
         {
-            var username = await GetDataFromApiAsync(buildWebhook.Commit.Author);
-            if (username != "") buildWebhook.Commit.Author = username;
-            return buildWebhook;
+            return await _apiHttpClient.GetStringResponseAsync(_apiUrl, login);
         }
 
-        private async Task<string> GetDataFromApiAsync(string username)
+        private static string FormatTelegramMessage(BuildWebhook notification)
         {
-            return await _apiHttpClient.GetStringResponseAsync(_apiUrl, username);
+            var builder = new StringBuilder();
+
+            string commitUrl = notification.RepositoryUrl.Contains("github.com")
+                ? $"{notification.RepositoryUrl}/commit/{notification.Commit.Hash}"
+                : $"{notification.RepositoryUrl}/commits/{notification.Commit.Hash}";
+
+            builder.AppendLine($"*🚨Сборка {(notification.Build.Status == "FAILED" ? "упала" : "успешна")}*: *{EscapeMarkdownV2(notification.Build.BuildPlanName)}*");
+            builder.AppendLine($"**>Последний коммит:");
+            builder.AppendLine($">🧑‍💻Автор: {EscapeMarkdownV2(notification.Commit.Author)}");
+            builder.AppendLine($">🌿Ветка: `{EscapeMarkdownV2(notification.BranchName)}`");
+            builder.AppendLine($">🔗Коммит: [{EscapeMarkdownV2(ShortenCommitHash(notification.Commit.Hash))}]({commitUrl})");
+
+            if (!string.IsNullOrWhiteSpace(notification.Commit.Message))
+            {
+                builder.AppendLine($">📝Сообщение: `{EscapeMarkdownV2(notification.Commit.Message.Trim())}`");
+            }
+            builder.AppendLine($">");
+            builder.AppendLine($">🔨Сборка:");
+            builder.AppendLine($">🔑Ключ сборки: `{EscapeMarkdownV2(notification.Build.BuildResultKey)}` \\(*{EscapeMarkdownV2(notification.Build.Status)}*\\)");
+            builder.AppendLine($">🕒Время: `{EscapeMarkdownV2(notification.Time)}`");
+            builder.AppendLine($">||");
+
+            return builder.ToString();
+        }
+
+        private static string ShortenCommitHash(string hash)
+        {
+            return hash.Length > 7 ? hash.Substring(0, 7) : hash;
         }
     }
 }

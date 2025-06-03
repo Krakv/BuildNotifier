@@ -1,9 +1,12 @@
 ﻿using BuildNotifier.Data.Models.BambooWebhookPayload;
 using BuildNotifier.Data.Models.Bot;
+using BuildNotifier.Data.Models.Kafka;
 using BuildNotifier.Data.Models.ServiceRegistration;
-using BuildNotifier.Services.External;
 using Confluent.Kafka;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Hosting;
+using BuildNotifier.Services.ChatSessionManagement;
+using BuildNotifier.Services.Utilites;
 
 namespace BuildNotifier.Services
 {
@@ -12,17 +15,27 @@ namespace BuildNotifier.Services
     /// </summary>
     public class CommandManagerListenerService : BackgroundService
     {
-        private static readonly HashSet<string> SessionCommands = new()
+        private static readonly HashSet<string> SubscriptionWithSessionCommands = new()
+        {
+            "/subfailedbuildnotifierwithsession",
+            "/unsubfailedbuildnotifierwithsession"
+        };
+
+        private static readonly HashSet<string> SubscriptionCommands = new()
         {
             "/subfailedbuildnotifier",
-            "/unsubfailedbuildnotifier"
+            "/unsubfailedbuildnotifier",
+            "/myfailedbuildnotifiersubscriptions"
         };
 
         private readonly ChatSessionManager _sessionManager;
         private readonly TelegramNotificationService _telegramNotificationService;
+        private readonly SubscriptionService _subscriptionService;
         private readonly ILogger<CommandManagerListenerService> _logger;
         private readonly IConsumer<Null, string> _consumer;
-        private readonly string _topicName;
+        private readonly string _messageTopicName;
+        private readonly string _hookTopicName;
+        private readonly string _serviceName;
 
         /// <summary>
         /// Инициализирует сервис прослушивания сообщений из командного менеджера
@@ -36,21 +49,29 @@ namespace BuildNotifier.Services
         public CommandManagerListenerService(
             ServiceRegistrationInfo serviceRegistrationInfo,
             TelegramNotificationService telegramNotificationService,
+            SubscriptionService subscriptionService,
             ChatSessionManager sessionManager,
+            IOptions<KafkaTopics> kafkaTopics,
             IOptions<ConsumerConfig> consumerOptions,
             ILogger<CommandManagerListenerService> logger
             )
         {
-            _telegramNotificationService = telegramNotificationService ?? throw new ArgumentNullException(nameof(telegramNotificationService));
-            _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _telegramNotificationService = telegramNotificationService;
+            _subscriptionService = subscriptionService;
+            _sessionManager = sessionManager;
+            _logger = logger;
+            _serviceName = serviceRegistrationInfo?.ServiceName ?? throw new ArgumentNullException(nameof(serviceRegistrationInfo.ServiceName));
+            _messageTopicName = serviceRegistrationInfo?.ConsumeTopic ?? throw new ArgumentNullException(nameof(serviceRegistrationInfo.ServiceName));
+            _hookTopicName = kafkaTopics.Value.WebhookTopic;
 
-            var config = consumerOptions?.Value ?? throw new ArgumentNullException(nameof(consumerOptions));
+            var config = consumerOptions?.Value;
             _consumer = new ConsumerBuilder<Null, string>(config).Build();
-            _topicName = serviceRegistrationInfo?.ConsumeTopic ?? throw new ArgumentNullException(nameof(serviceRegistrationInfo));
-            _consumer.Subscribe(_topicName);
+            _consumer.Subscribe(new List<string>(){_messageTopicName, _hookTopicName});
         }
 
+        /// <summary>
+        /// Основной цикл обработки входящих сообщений из Kafka.
+        /// </summary>
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             await Task.Yield();
@@ -59,54 +80,37 @@ namespace BuildNotifier.Services
             {
                 try
                 {
-                    var message = ConsumeMessageWithTimeout(stoppingToken);
-                    if (message == null) continue;
+                    var kafkaMessage = ConsumeMessage(stoppingToken);
+                    if (kafkaMessage == null) continue;
 
-                    await ProcessMessageAsync(message.Message.Value, stoppingToken);
+                    await ProcessMessageAsync(kafkaMessage, stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {
-                    _logger.LogInformation("Command listener is stopping");
+                    _logger.LogInformation("Слушатель команд останавливается");
                     break;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error processing message");
+                    _logger.LogError(ex, "Ошибка при обработке сообщения");
                     await Task.Delay(1000, stoppingToken);
                 }
             }
         }
 
-        private ConsumeResult<Null, string>? ConsumeMessageWithTimeout(CancellationToken stoppingToken)
+        private ConsumeResult<Null, string>? ConsumeMessage(CancellationToken stoppingToken)
         {
             try
             {
-                var result = _consumer.Consume(stoppingToken);
-                _logger.LogDebug("Получено сообщение: {Message}", result.Message.Value);
-                return result;
+                var kafkaMessage = _consumer.Consume(stoppingToken);
+                _logger.LogDebug("Получено сообщение: {Message}", kafkaMessage.Message.Value);
+                return kafkaMessage;
             }
             catch (ConsumeException ex)
             {
-                _logger.LogError(ex, "Error consuming message from topic {Topic}", _topicName);
+                _logger.LogError(ex, "Ошибка при получении сообщения из топика {Topic}", _messageTopicName);
                 return null;
             }
-        }
-
-        private async Task ProcessMessageAsync(string messageJson, CancellationToken stoppingToken)
-        {
-            if (TryParseBotMessage(messageJson, out var botMessage))
-            {
-                await ProcessBotMessageAsync(botMessage!, stoppingToken);
-                return;
-            }
-
-            if (TryParseBuildWebhook(messageJson, out var buildPayload))
-            {
-                ProcessBuildWebhook(buildPayload!);
-                return;
-            }
-
-            _logger.LogWarning("Unknown message format: {Message}", messageJson);
         }
 
         private bool TryParseBotMessage(string json, out BotMessage? message)
@@ -114,7 +118,7 @@ namespace BuildNotifier.Services
             if (JsonParser.TryParseJson(json, out message))
                 return message != null;
 
-            _logger.LogWarning("Failed to parse BotMessage from JSON: {Json}", json);
+            _logger.LogWarning("Не удалось распарсить BotMessage из JSON: {Json}", json);
             return false;
         }
 
@@ -123,15 +127,46 @@ namespace BuildNotifier.Services
             if (JsonParser.TryParseJson(json, out payload))
                 return payload != null;
 
-            _logger.LogWarning("Failed to parse BuildWebhook from JSON: {Json}", json);
+            _logger.LogWarning("Не удалось распарсить BuildWebhook из JSON: {Json}", json);
             return false;
+        }
+
+        private async Task ProcessMessageAsync(ConsumeResult<Null, string> kafkaMessage, CancellationToken stoppingToken)
+        {
+            var topic = kafkaMessage.Topic;
+            var value = kafkaMessage.Message.Value;
+
+            if (topic == _messageTopicName && TryParseBotMessage(value, out var botMessage))
+            {
+                await ProcessBotMessageAsync(botMessage!, stoppingToken);
+                return;
+            }
+
+            if (topic == _hookTopicName && TryParseBuildWebhook(value, out var buildPayload))
+            {
+                if (buildPayload?.ServiceName == _serviceName)
+                    ProcessBuildWebhook(buildPayload);
+                else
+                    _logger.LogInformation("Пойман webhook для другого сервиса: {Message}", value);
+                return;
+            }
+
+            _logger.LogWarning("Неизвестный формат сообщения: {Message}", value);
         }
 
         private async Task ProcessBotMessageAsync(BotMessage message, CancellationToken stoppingToken)
         {
-            var command = message.Data.Text.ToLowerInvariant();
+            var commandText = message.Data.Text;
 
-            if (SessionCommands.Contains(command))
+            var parts = commandText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            var command = parts[0];
+
+            if (SubscriptionCommands.Contains(command))
+            {
+                _subscriptionService.ProcessCommand(message.Data.ChatId, commandText, message.KafkaMessageId);
+            }
+            else if (SubscriptionWithSessionCommands.Contains(command))
             {
                 await _sessionManager.CreateAndStartSessionAsync(message, stoppingToken);
             }
@@ -149,7 +184,7 @@ namespace BuildNotifier.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing build webhook");
+                _logger.LogError(ex, "Ошибка при обработке webhook сборки");
             }
         }
 

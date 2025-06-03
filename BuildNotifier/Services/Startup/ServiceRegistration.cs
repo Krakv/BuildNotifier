@@ -2,10 +2,10 @@
 using Confluent.Kafka;
 using System.Text.Json;
 
-namespace BuildNotifier.Services.External
+namespace BuildNotifier.Services.Startup
 {
     /// <summary>
-    /// Сервис для регистрации core сервиса в командном менеджере
+    /// Сервис для регистрации сервиса в командном менеджере
     /// </summary>
     public class ServiceRegistration
     {
@@ -29,7 +29,6 @@ namespace BuildNotifier.Services.External
             _consumerConfig = consumerConfig;
             _serviceDescription = serviceDescription;
         }
-
 
         /// <summary>
         /// Регистрирует сервис в командном менеджере
@@ -97,7 +96,7 @@ namespace BuildNotifier.Services.External
                     catch (ConsumeException e)
                     {
                         Console.WriteLine($"Не удалось получить сообщение: {e.Error.Reason}.");
-                        Console.WriteLine("Повторная попытка получения.");
+                        Console.WriteLine("Повторная попытка доставки и получения.");
                     }
                 }
             }
