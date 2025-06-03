@@ -52,7 +52,7 @@ namespace BuildNotifier.Services
                 case "/unsubfailedbuildnotifier":
                     await ProcessUnsubscriptionCommand(chatId, parameters, kafkaMessageId);
                     break;
-                case "/myfailedbuildnotifiersubscriptions":
+                case "/myfailedbuildnotifiersubs":
                     await ProcessListSubscriptionsCommand(chatId, kafkaMessageId);
                     break;
             }
@@ -288,8 +288,10 @@ namespace BuildNotifier.Services
                 ℹ️ *Как подписаться на уведомления о неудачных сборках:*
                 Используйте команду:
                 ```
-                \/subfailedbuildnotifier Project1 \- Plan1```
+                \/subfailedbuildnotifier Project1 \- Plan1
+                ```
                 Можно указывать несколько планов через запятую или точку с запятой\.
+
                 Формат названия плана сборки: \"[Project \- Plan](https://drive.google.com/file/d/1uZR6zDXhMe19hd1Y0OfhoxPExIiiGQyg/view?usp=sharing)\" \([?](https://confluence.atlassian.com/bamboo/bamboo-variables-289277087.html#:~:text=Some%20job%20name-,bamboo.planName,-The%20current%20plan%27s)\)
                 """;
 
@@ -302,11 +304,15 @@ namespace BuildNotifier.Services
                 ℹ️ *Как отписаться от уведомлений о неудачных сборках:*
                 Используйте команду:
                 ```
-                \/unsubfailedbuildnotifier Project1 \- Plan1```
+                \/unsubfailedbuildnotifier Project1 \- Plan1
+                ```
                 Можно указывать несколько планов через запятую или точку с запятой\.
+
                 Чтобы отписаться от всех планов, используйте команду:
                 `\/unsubfailedbuildnotifier all`\.
-                Чтобы посмотреть все свои подписки\, используйте \/myfailedbuildnotifiersubscriptions
+
+                Чтобы посмотреть все свои подписки\, используйте 
+                \/myfailedbuildnotifiersubs
                 """;
 
             SendResponse(chatId, helpMessage, kafkaMessageId);

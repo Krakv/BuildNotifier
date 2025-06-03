@@ -9,7 +9,7 @@ namespace BuildNotifier.Services.Helpers
     {
         /// <summary>
         /// Проверяет, что строка имеет формат "ПРОЕКТ - ПЛАН" (только буквы/цифры и один дефис с пробелами)
-        /// Например: "PROJ - PLAN", "APP - MAIN"
+        /// Например: "Project - Plan", "App - Main"
         /// </summary>
         /// <param name="planName">Название плана сборки Bamboo (buildPlanName)</param>
         /// <returns>Возвращает результат проверки на соответствие формату</returns>
@@ -24,7 +24,7 @@ namespace BuildNotifier.Services.Helpers
         }
 
         /// <summary>
-        /// Оставляет только первые две части названия плана и форматирует с пробелами (PROJ - PLAN-123 → PROJ - PLAN, AD - MAIN - WEB → AD - MAIN)
+        /// Оставляет только первые две части названия плана и форматирует с пробелами (PROJ - PLAN - 123 → PROJ - PLAN, AD - MAIN - WEB → AD - MAIN)
         /// </summary>
         /// <param name="fullPlanName">Полное название плана сборки Bamboo</param>
         /// <returns>Название проекта и плана, разделенные дефисом с пробелами</returns>
@@ -46,9 +46,8 @@ namespace BuildNotifier.Services.Helpers
 
         /// <summary>
         /// Удаляет часть строки, содержащую email в угловых скобках, оставляя только имя/логин.
-        /// Пример: "Иван Петров <test@gmail.com>" → "Иван Петров"
         /// </summary>
-        /// <param name="input">Входная строка, возможно содержащая email в < ></param>
+        /// <param name="input">Входная строка, возможно содержащая email</param>
         /// <returns>Строка без email-части</returns>
         public static string RemoveEmail(string input)
         {

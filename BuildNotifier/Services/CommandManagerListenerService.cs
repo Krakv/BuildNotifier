@@ -25,7 +25,7 @@ namespace BuildNotifier.Services
         {
             "/subfailedbuildnotifier",
             "/unsubfailedbuildnotifier",
-            "/myfailedbuildnotifiersubscriptions"
+            "/myfailedbuildnotifiersubs"
         };
 
         private readonly ChatSessionManager _sessionManager;

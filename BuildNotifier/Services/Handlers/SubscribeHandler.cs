@@ -113,7 +113,7 @@ namespace BuildNotifier.Services
         private void SendInvalidProjectMessage(BotMessage message)
         {
             _sendMessage(
-                $"Некорректное название плана сборки \"{message.Data.Text}\". Введите корректное.\nПример: \"PROJ - PLAN\"",
+                $"Некорректное название плана сборки \"{message.Data.Text}\". Введите корректное.\nПример: \"Project - Plan\"",
                 message.Data.ChatId,
                 status: "IN_PROGRESS",
                 kafkaMessageId: message.KafkaMessageId,
