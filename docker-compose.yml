@@ -1,11 +1,16 @@
 services:
   build-notifier:
     build: .
+    volumes:
+      - sqlite_data:/data:rw
     container_name: build-notifier
     ports:
       - "8082:8080"
     networks:
       - dev_command-manager-network
+
+volumes:
+  sqlite_data:
 
 networks:
   dev_command-manager-network:

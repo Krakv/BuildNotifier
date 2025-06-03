@@ -123,7 +123,7 @@ namespace BuildNotifier.Services.ChatSessionManagement
                 KafkaMessageId = botMessage.KafkaMessageId,
                 Data = new()
                 {
-                    Text = "Работа сервиса завершена.",
+                    Text = "Неизвестная команда.",
                     ChatId = botMessage.Data.ChatId,
                     Method = "sendMessage"
                 }

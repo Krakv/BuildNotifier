@@ -144,7 +144,7 @@ namespace BuildNotifier.Services
                 message.Data.ChatId,
                 status: isSaved ? "COMPLETED" : "IN_PROGRESS",
                 kafkaMessageId: message.KafkaMessageId,
-                inlineKeyboardMarkup: isSaved ?
+                inlineKeyboardMarkup: !isSaved ?
                 new InlineKeyboardMarkup
                 {
                     InlineKeyboardButtons = new List<List<InlineKeyboardButton>>
