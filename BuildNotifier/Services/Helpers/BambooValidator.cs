@@ -8,7 +8,7 @@ namespace BuildNotifier.Services.Helpers
     public class BambooValidator
     {
         /// <summary>
-        /// Проверяет, что строка имеет формат "ПРОЕКТ - ПЛАН" (только буквы/цифры и один дефис с пробелами)
+        /// Проверяет, что строка имеет формат "ПРОЕКТ - ПЛАН" (Допустимы пробелы, нижние подчеркивания и точки в названиях плана и проекта)
         /// Например: "Project - Plan", "App - Main"
         /// </summary>
         /// <param name="planName">Название плана сборки Bamboo (buildPlanName)</param>
@@ -20,7 +20,7 @@ namespace BuildNotifier.Services.Helpers
                 return false;
             }
 
-            return Regex.IsMatch(planName, @"^[A-Za-z0-9]+\s-\s[A-Za-z0-9]+$");
+            return Regex.IsMatch(planName, @"^[A-Za-z0-9.\s_]+\s-\s[A-Za-z0-9.\s_]+$");
         }
 
         /// <summary>

@@ -96,7 +96,7 @@ namespace BuildNotifier.Services
             _sendMessage(
                 "Введите название плана сборки в формате " +
                 "\\\"[Project \\- Plan](https://drive.google.com/file/d/1uZR6zDXhMe19hd1Y0OfhoxPExIiiGQyg/view?usp=sharing)\\\" " +
-                "\\([?](https://confluence.atlassian.com/bamboo/bamboo-variables-289277087.html#:~:text=Some%20job%20name-,bamboo.planName,-The%20current%20plan%27s)\\)",
+                "\\([?](https://confluence.atlassian.com/bamboo/bamboo-variables-289277087.html#:~:text=Some%20job%20name-,bamboo.planName,-The%20current%20plan%27s)\\) \\(Без кавычек\\)",
                 message.Data.ChatId,
                 status: "IN_PROGRESS",
                 parseMode: "MarkdownV2",
@@ -136,14 +136,17 @@ namespace BuildNotifier.Services
 
         private void HandleSubscriptionResult(BotMessage message, bool isSaved)
         {
+            var planName = TelegramMarkdownHelper.EscapeMarkdownV2(message.Data.Text);
+
             var response = isSaved
-                ? $"Подписка на уведомления о сборках \"{message.Data.Text}\" оформлена."
-                : $"Вы уже подписаны на \"{message.Data.Text}\".";
+                ? $"Подписка на уведомления о сборках \\\"`{planName}`\\\" оформлена\\."
+                : $"Вы уже подписаны на \\\"`{planName}`\\\"\\.";
 
             _sendMessage(response,
                 message.Data.ChatId,
                 status: isSaved ? "COMPLETED" : "IN_PROGRESS",
                 kafkaMessageId: message.KafkaMessageId,
+                parseMode: "MarkdownV2",
                 inlineKeyboardMarkup: !isSaved ?
                 new InlineKeyboardMarkup
                 {
