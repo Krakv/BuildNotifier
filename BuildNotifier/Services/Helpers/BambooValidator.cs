@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 
 namespace BuildNotifier.Services.Helpers
 {
@@ -13,14 +14,45 @@ namespace BuildNotifier.Services.Helpers
         /// </summary>
         /// <param name="planName">Название плана сборки Bamboo (buildPlanName)</param>
         /// <returns>Возвращает результат проверки на соответствие формату</returns>
-        public static bool IsValidProjectPlanName(string planName)
+        public static bool IsValidProjectPlanName(string planName, out string message)
         {
+            message = string.Empty;
+
             if (string.IsNullOrWhiteSpace(planName))
             {
+                message = "Название плана не может быть пустым или содержать только пробелы";
                 return false;
             }
 
-            return Regex.IsMatch(planName, @"^[A-Za-z0-9.\s_]+\s-\s[A-Za-z0-9.\s_]+$");
+            if (!Regex.IsMatch(planName, @"^.+\s-\s.+$"))
+            {
+                message = $"Название плана '{planName}' не содержит разделителя ' - '";
+                return false;
+            }
+
+            var parts = planName.Split(new[] { " - " }, StringSplitOptions.None);
+            if (parts.Length != 2)
+            {
+                message = $"Название плана '{planName}' должно содержать ровно одну пару ' - '";
+                return false;
+            }
+
+            var projectName = parts[0];
+            var planPart = parts[1];
+
+            if (!Regex.IsMatch(projectName, @"^[A-Za-z0-9._\s]+$"))
+            {
+                message = $"Название проекта '{projectName}' содержит недопустимые символы";
+                return false;
+            }
+
+            if (!Regex.IsMatch(planPart, @"^[A-Za-z0-9._\s]+$"))
+            {
+                message = $"Название плана '{planPart}' содержит недопустимые символы";
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>

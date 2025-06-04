@@ -2,6 +2,8 @@
 using BuildNotifier.Data.Repositories;
 using BuildNotifier.Services.Delegates;
 using BuildNotifier.Services.Helpers;
+using Confluent.Kafka;
+using Microsoft.Extensions.Logging;
 
 namespace BuildNotifier.Services.Handlers
 {
@@ -43,23 +45,24 @@ namespace BuildNotifier.Services.Handlers
 
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    var message = await _getAnswer();
-                    if (message == null) continue;
+                    var botMessage = await _getAnswer();
+                    if (botMessage == null) continue;
 
-                    if (message.Data.Text.Equals("close_failed_build_notifier_session", StringComparison.CurrentCultureIgnoreCase))
+                    if (botMessage.Data.Text.Equals("close_failed_build_notifier_session", StringComparison.CurrentCultureIgnoreCase))
                     {
-                        HandleSessionClose(message);
+                        HandleSessionClose(botMessage);
                         return;
                     }
 
-                    if (!ValidateProjectName(message.Data.Text))
+                    if (!ValidateProjectName(botMessage.Data.Text, out string message))
                     {
-                        SendInvalidProjectMessage(message);
+                        SendInvalidProjectMessage(botMessage, message);
+                        _logger.LogWarning(message);
                         continue;
                     }
 
-                    var isSaved = await _planChatRepository.AddPlanChatAsync(message.Data.Text, message.Data.ChatId);
-                    HandleSubscriptionResult(message, isSaved);
+                    var isSaved = await _planChatRepository.AddPlanChatAsync(botMessage.Data.Text, botMessage.Data.ChatId);
+                    HandleSubscriptionResult(botMessage, isSaved);
 
                     if (isSaved) return;
                 }
@@ -86,7 +89,7 @@ namespace BuildNotifier.Services.Handlers
         {
             _sendMessage(
                 "Введите название плана сборки в формате " +
-                "\\\"[Project \\- Plan](https://drive.google.com/file/d/1uZR6zDXhMe19hd1Y0OfhoxPExIiiGQyg/view?usp=sharing)\\\" " +
+                "[Project \\- Plan](https://drive.google.com/file/d/1uZR6zDXhMe19hd1Y0OfhoxPExIiiGQyg/view?usp=sharing) " +
                 "\\([?](https://confluence.atlassian.com/bamboo/bamboo-variables-289277087.html#:~:text=Some%20job%20name-,bamboo.planName,-The%20current%20plan%27s)\\) \\(Без кавычек\\)",
                 message.Data.ChatId,
                 status: "IN_PROGRESS",
@@ -101,13 +104,22 @@ namespace BuildNotifier.Services.Handlers
                 });
         }
 
-        private void SendInvalidProjectMessage(BotMessage message)
+        private void SendInvalidProjectMessage(BotMessage botMessage, string message)
         {
+            var text =
+                $"""
+                Некорректное название плана сборки "{botMessage.Data.Text}". 
+                Введите корректное.
+                Пример: Project - Plan.
+                {message}
+                """;
+
             _sendMessage(
-                $"Некорректное название плана сборки \"{message.Data.Text}\". Введите корректное.\nПример: \"Project - Plan\"",
-                message.Data.ChatId,
+                TelegramMarkdownHelper.EscapeMarkdownV2(text),
+                botMessage.Data.ChatId,
                 status: "IN_PROGRESS",
-                kafkaMessageId: message.KafkaMessageId,
+                parseMode: "MarkdownV2",
+                kafkaMessageId: botMessage.KafkaMessageId,
                 inlineKeyboardMarkup: new InlineKeyboardMarkup
                 {
                     InlineKeyboardButtons =
@@ -150,9 +162,9 @@ namespace BuildNotifier.Services.Handlers
                 );
         }
 
-        private static bool ValidateProjectName(string projectName)
+        private static bool ValidateProjectName(string planName, out string message)
         {
-            return BambooValidator.IsValidProjectPlanName(projectName);
+            return BambooValidator.IsValidProjectPlanName(planName, out message);
         }
     }
 }

@@ -1,7 +1,8 @@
 ﻿using BuildNotifier.Data.Models.Bot;
 using BuildNotifier.Data.Repositories;
-using BuildNotifier.Services.Helpers;
 using BuildNotifier.Services.External;
+using BuildNotifier.Services.Helpers;
+using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
 using System.Text;
 
@@ -81,9 +82,10 @@ namespace BuildNotifier.Services
 
                 foreach (var planName in planNames)
                 {
-                    if (!BambooValidator.IsValidProjectPlanName(planName))
+                    if (!BambooValidator.IsValidProjectPlanName(planName, out string message))
                     {
                         invalidPlans.Add(planName);
+                        _logger.LogWarning(message);
                         continue;
                     }
 
@@ -148,9 +150,10 @@ namespace BuildNotifier.Services
 
                 foreach (var planName in planNames)
                 {
-                    if (!BambooValidator.IsValidProjectPlanName(planName))
+                    if (!BambooValidator.IsValidProjectPlanName(planName, out string message))
                     {
                         invalidPlans.Add(planName);
+                        _logger.LogWarning(message);
                         continue;
                     }
 
