@@ -56,7 +56,7 @@ namespace BuildNotifier.Services.ChatSessionManagement
         /// - OnSendMessage: перенаправляет сообщения в messageProducer
         /// - OnSessionEnded: автоматически останавливает сессию
         /// </remarks>
-        public async Task CreateAndStartSessionAsync(BotMessage message)
+        public async Task CreateAndStartSessionAsync(BotMessage message, CancellationToken stoppingToken)
         {
             var session = _sessionFactory.CreateSession();
             session.OnSendMessage += SendRequestToKafka;
@@ -69,8 +69,13 @@ namespace BuildNotifier.Services.ChatSessionManagement
 
             if (_activeSessions.TryAdd(message.Data.ChatId, chatSessionWithCancellation))
             {
-                var token = chatSessionWithCancellation.CancellationTokenSource.Token;
-                await session.StartAsync(token, message);
+                var sessionToken = chatSessionWithCancellation.CancellationTokenSource.Token;
+                // Отменяется в двух случаях:
+                // 1. Отменена работа конкретной сессии
+                // 2. Отменена работа всего приложения
+                var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(sessionToken, stoppingToken);
+
+                await session.StartAsync(linkedCts.Token, message);
                 _logger.LogInformation($"Запущена сессия для чата: {message.Data.ChatId}");
             }
         }

@@ -170,11 +170,15 @@ namespace BuildNotifier.Services
                     {
                         _logger.LogError("Ошибка во время обработки команды.");
                     }
+                    else
+                    {
+                        _logger.LogInformation("Завершена обработка команды.");
+                    }
                 }, TaskScheduler.Default);
             }
             else if (SubscriptionWithSessionCommands.Contains(command))
             {
-                await _sessionManager.CreateAndStartSessionAsync(message);
+                await _sessionManager.CreateAndStartSessionAsync(message, stoppingToken);
             }
             else
             {
@@ -191,6 +195,10 @@ namespace BuildNotifier.Services
                     if (t.IsFaulted)
                     {
                         _logger.LogError("Ошибка во время обработки вебхука.");
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Завершена обработка команды.");
                     }
                 }, TaskScheduler.Default);
             }
