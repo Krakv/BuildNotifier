@@ -10,27 +10,20 @@ namespace BuildNotifier.Services
     /// <summary>
     /// Сервис для управления подписками на уведомления о сборках в Bamboo
     /// </summary>
-    public class SubscriptionService
+    /// <remarks>
+    /// Конструктор сервиса подписок
+    /// </remarks>
+    /// <param name="planChatRepository">Репозиторий для работы с подписками</param>
+    /// <param name="logger">Логгер</param>
+    /// <param name="messageProducer">Сервис для отправки сообщений</param>
+    public class SubscriptionService(
+        PlanChatRepository planChatRepository,
+        ILogger<SubscriptionService> logger,
+        MessageProducer messageProducer)
     {
-        private readonly PlanChatRepository _planChatRepository;
-        private readonly ILogger<SubscriptionService> _logger;
-        private readonly MessageProducer _messageProducer;
-
-        /// <summary>
-        /// Конструктор сервиса подписок
-        /// </summary>
-        /// <param name="planChatRepository">Репозиторий для работы с подписками</param>
-        /// <param name="logger">Логгер</param>
-        /// <param name="messageProducer">Сервис для отправки сообщений</param>
-        public SubscriptionService(
-            PlanChatRepository planChatRepository,
-            ILogger<SubscriptionService> logger,
-            MessageProducer messageProducer)
-        {
-            _planChatRepository = planChatRepository;
-            _logger = logger;
-            _messageProducer = messageProducer;
-        }
+        private readonly PlanChatRepository _planChatRepository = planChatRepository;
+        private readonly ILogger<SubscriptionService> _logger = logger;
+        private readonly MessageProducer _messageProducer = messageProducer;
 
         /// <summary>
         /// Обрабатывает входящую команду от пользователя
@@ -70,15 +63,15 @@ namespace BuildNotifier.Services
             {
                 if (parameters == "")
                 {
-                    SendSubscribeHelpMessage(chatId, kafkaMessageId);
+                    await SendSubscribeHelpMessage(chatId, kafkaMessageId);
                     return;
                 }
 
                 var planNames = ParsePlanParameters(parameters);
 
-                if (!planNames.Any())
+                if (planNames.Count == 0)
                 {
-                    SendResponse(chatId, "Не указаны планы сборки для подписки\\. Формат: Проект \\- План", kafkaMessageId);
+                    await SendResponse(chatId, "Не указаны планы сборки для подписки\\. Формат: Проект \\- План", kafkaMessageId);
                     return;
                 }
 
@@ -107,12 +100,12 @@ namespace BuildNotifier.Services
                 }
 
                 var response = CreateSubscriptionResponse(addedPlans, existingPlans, invalidPlans);
-                SendResponse(chatId, response.ToString(), kafkaMessageId);
+                await SendResponse(chatId, response.ToString(), kafkaMessageId);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка при обработке команды подписки");
-                SendResponse(chatId, "Произошла ошибка при обработке команды\\.", kafkaMessageId);
+                await SendResponse(chatId, "Произошла ошибка при обработке команды\\.", kafkaMessageId);
             }
         }
 
@@ -128,7 +121,7 @@ namespace BuildNotifier.Services
             {
                 if (parameters == "")
                 {
-                    SendUnsubscribeHelpMessage(chatId, kafkaMessageId);
+                    await SendUnsubscribeHelpMessage(chatId, kafkaMessageId);
                     return;
                 }
 
@@ -136,16 +129,16 @@ namespace BuildNotifier.Services
                 {
                     if (await _planChatRepository.DeleteAllPlansFromChatAsync(chatId))
                     {
-                        SendResponse(chatId, "Вы успешно отписаны от всех планов сборок\\.", kafkaMessageId);
+                        await SendResponse(chatId, "Вы успешно отписаны от всех планов сборок\\.", kafkaMessageId);
                         return;
                     }
                 }
 
                 var planNames = ParsePlanParameters(parameters);
 
-                if (!planNames.Any())
+                if (planNames.Count == 0)
                 {
-                    SendResponse(chatId, "Не указаны планы сборки для отписки\\. Формат: Проект \\- План", kafkaMessageId);
+                    await SendResponse(chatId, "Не указаны планы сборки для отписки\\. Формат: Проект \\- План", kafkaMessageId);
                     return;
                 }
 
@@ -174,12 +167,12 @@ namespace BuildNotifier.Services
                 }
 
                 var response = CreateUnsubscriptionResponse(removedPlans, notSubscribedPlans, invalidPlans);
-                SendResponse(chatId, response, kafkaMessageId);
+                await SendResponse(chatId, response, kafkaMessageId);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка при обработке команды отписки");
-                SendResponse(chatId, "Произошла ошибка при обработке команды\\. Попробуйте позже\\.", kafkaMessageId);
+                await SendResponse(chatId, "Произошла ошибка при обработке команды\\. Попробуйте позже\\.", kafkaMessageId);
             }
         }
 
@@ -194,9 +187,9 @@ namespace BuildNotifier.Services
             {
                 var subscriptions = await _planChatRepository.GetPlanNamesAsync(chatId);
 
-                if (!subscriptions.Any())
+                if (subscriptions.Count == 0)
                 {
-                    SendResponse(chatId, "У вас нет активных подписок на уведомления о сборках\\.", kafkaMessageId);
+                    await SendResponse(chatId, "У вас нет активных подписок на уведомления о сборках\\.", kafkaMessageId);
                     return;
                 }
 
@@ -207,12 +200,12 @@ namespace BuildNotifier.Services
                 response.AppendLine(">||");
                 response.AppendLine("Для отписки используйте \\/unsubfailedbuildnotifier");
 
-                SendResponse(chatId, response.ToString(), kafkaMessageId);
+                await SendResponse(chatId, response.ToString(), kafkaMessageId);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка при получении списка подписок");
-                SendResponse(chatId, "Произошла ошибка при получении списка подписок\\. Попробуйте позже\\.", kafkaMessageId);
+                await SendResponse(chatId, "Произошла ошибка при получении списка подписок\\. Попробуйте позже\\.", kafkaMessageId);
             }
         }
 
@@ -220,14 +213,14 @@ namespace BuildNotifier.Services
         {
             var response = new StringBuilder();
 
-            if (addedPlans.Any())
+            if (addedPlans.Count != 0)
             {
                 response.AppendLine("✅ Вы успешно подписаны на уведомления для сборок:");
                 var text = string.Join("\n", addedPlans.Select(p => $"▪ {p}"));
                 response.AppendLine(TelegramMarkdownHelper.EscapeMarkdownV2(text));
             }
 
-            if (existingPlans.Any())
+            if (existingPlans.Count != 0)
             {
                 if (response.Length > 0) response.AppendLine();
                 response.AppendLine("ℹ️ Вы уже подписаны на эти сборки:");
@@ -235,7 +228,7 @@ namespace BuildNotifier.Services
                 response.AppendLine(TelegramMarkdownHelper.EscapeMarkdownV2(text));
             }
 
-            if (invalidPlans.Any())
+            if (invalidPlans.Count != 0)
             {
                 if (response.Length > 0) response.AppendLine();
                 response.AppendLine("❌ Некорректные названия сборок \\(формат: Project \\- Plan\\):");
@@ -250,14 +243,14 @@ namespace BuildNotifier.Services
         {
             var response = new StringBuilder();
 
-            if (removedPlans.Any())
+            if (removedPlans.Count != 0)
             {
                 response.AppendLine("✅ Вы успешно отписались от уведомлений для сборок:");
                 var text = string.Join("\n", removedPlans.Select(p => $"▪ {p}"));
                 response.AppendLine(TelegramMarkdownHelper.EscapeMarkdownV2(text));
             }
 
-            if (notSubscribedPlans.Any())
+            if (notSubscribedPlans.Count != 0)
             {
                 if (response.Length > 0) response.AppendLine();
                 response.AppendLine("ℹ️ Вы не были подписаны на эти сборки:");
@@ -265,7 +258,7 @@ namespace BuildNotifier.Services
                 response.AppendLine(TelegramMarkdownHelper.EscapeMarkdownV2(text));
             }
 
-            if (invalidPlans.Any())
+            if (invalidPlans.Count != 0)
             {
                 if (response.Length > 0) response.AppendLine();
                 response.AppendLine("❌ Некорректные названия сборок \\(формат: Проект \\- План\\):");
@@ -281,7 +274,7 @@ namespace BuildNotifier.Services
             return response.ToString();
         }
 
-        private void SendSubscribeHelpMessage(string chatId, string kafkaMessageId)
+        private async Task SendSubscribeHelpMessage(string chatId, string kafkaMessageId)
         {
             var helpMessage =
                 """
@@ -295,10 +288,10 @@ namespace BuildNotifier.Services
                 Формат названия плана сборки: \"[Project \- Plan](https://drive.google.com/file/d/1uZR6zDXhMe19hd1Y0OfhoxPExIiiGQyg/view?usp=sharing)\" \([?](https://confluence.atlassian.com/bamboo/bamboo-variables-289277087.html#:~:text=Some%20job%20name-,bamboo.planName,-The%20current%20plan%27s)\)
                 """;
 
-            SendResponse(chatId, helpMessage, kafkaMessageId);
+            await SendResponse(chatId, helpMessage, kafkaMessageId);
         }
 
-        private void SendUnsubscribeHelpMessage(string chatId, string kafkaMessageId)
+        private async Task SendUnsubscribeHelpMessage(string chatId, string kafkaMessageId)
         {
             var helpMessage = """
                 ℹ️ *Как отписаться от уведомлений о неудачных сборках:*
@@ -315,18 +308,17 @@ namespace BuildNotifier.Services
                 \/myfailedbuildnotifiersubs
                 """;
 
-            SendResponse(chatId, helpMessage, kafkaMessageId);
+            await SendResponse(chatId, helpMessage, kafkaMessageId);
         }
 
         private List<string> ParsePlanParameters(string parameters)
         {
-            return parameters.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+            return [.. parameters.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
                              .Select(p => p.Trim())
-                             .Where(p => !string.IsNullOrWhiteSpace(p))
-                             .ToList();
+                             .Where(p => !string.IsNullOrWhiteSpace(p))];
         }
 
-        private void SendResponse(string chatId, string messageText, string kafkaMessageId)
+        private async Task SendResponse(string chatId, string messageText, string kafkaMessageId)
         {
             var botMessage = new BotMessage
             {
@@ -343,7 +335,7 @@ namespace BuildNotifier.Services
             };
 
             var json = System.Text.Json.JsonSerializer.Serialize(botMessage);
-            _messageProducer.SendRequest(json);
+            await _messageProducer.SendRequest(json);
         }
     }
 }

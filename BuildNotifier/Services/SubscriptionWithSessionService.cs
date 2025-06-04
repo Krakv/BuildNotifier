@@ -2,6 +2,7 @@
 using BuildNotifier.Data.Repositories;
 using BuildNotifier.Services.Handlers;
 using BuildNotifier.Services.Interfaces;
+using BuildNotifier.Services.Delegates;
 using System.Text.Json;
 using System.Threading.Channels;
 
@@ -28,7 +29,7 @@ namespace BuildNotifier.Services
         private bool _disposed = false;
         private string? _chatId;
         private DateTime _lastActivityTime;
-        private BotMessage? _lastBotMessage;
+        private string? _lastKafkaMessageId;
 
         /// <summary>
         /// Идентификатор чата текущей сессии
@@ -120,11 +121,12 @@ namespace BuildNotifier.Services
             string? kafkaMessageId = null)
         {
             _lastActivityTime = DateTime.Now;
+            _lastKafkaMessageId = kafkaMessageId ?? Guid.NewGuid().ToString();
 
             var botMessage = new BotMessage
             {
                 Method = "sendMessage",
-                KafkaMessageId = kafkaMessageId ?? Guid.NewGuid().ToString(),
+                KafkaMessageId = _lastKafkaMessageId,
                 Status = status,
                 Data = new()
                 {
@@ -146,7 +148,7 @@ namespace BuildNotifier.Services
                 if (DateTime.Now - _lastActivityTime >= TimeSpan.FromMinutes(InactivityTimeoutMinutes))
                 {
                     SendMessage("Сессия завершилась из-за отсутствия активности.", ChatId,
-                        kafkaMessageId: _lastBotMessage?.KafkaMessageId);
+                        kafkaMessageId: _lastKafkaMessageId);
                     OnSessionEnded?.Invoke(ChatId);
                     break;
                 }

@@ -15,39 +15,29 @@ namespace BuildNotifier.Services
     /// <summary>
     /// Сервис для отправки данных о build из Webhook в чат телеграма
     /// </summary>
-    public class TelegramNotificationService
+    /// <remarks>
+    /// Инициализирует сервис для отправки данных о build из Webhook в чат телеграма
+    /// </remarks>
+    /// <param name="producerOptions">Конфигурация producer для Kafka</param>
+    /// <param name="httpOptions">Конфигурация, которая содержит URL адрес api, где можно получить username в телеграме по логину доменной учетной записи</param>
+    /// <param name="serviceRegistrationInfo">Информация о доступных топиках для обмена сообщений с командным менеджером</param>
+    /// <param name="planChatRepository">Репозиторий связей сборок и чатов</param>
+    /// <param name="logger">Логгер для вывода информации о внутренних процессах</param>
+    /// <param name="apiHttpClient">Клиент для отправки запроса по http</param>
+    public class TelegramNotificationService(
+        MessageProducer messageProducer,
+        IOptions<TelegramNicknameService> apiOptions,
+        IOptions<JsonSerializerOptions> jsonOptions,
+        PlanChatRepository planChatRepository,
+        ILogger<TelegramNotificationService> logger,
+        ApiHttpClient apiHttpClient)
     {
-        private readonly JsonSerializerOptions _jsonOptions;
-        private readonly PlanChatRepository _planChatRepository;
-        private readonly ApiHttpClient _apiHttpClient;
-        private readonly ILogger<TelegramNotificationService> _logger;
-        private readonly MessageProducer _messageProducer;
-        private readonly string _apiUrl;
-
-        /// <summary>
-        /// Инициализирует сервис для отправки данных о build из Webhook в чат телеграма
-        /// </summary>
-        /// <param name="producerOptions">Конфигурация producer для Kafka</param>
-        /// <param name="httpOptions">Конфигурация, которая содержит URL адрес api, где можно получить username в телеграме по логину доменной учетной записи</param>
-        /// <param name="serviceRegistrationInfo">Информация о доступных топиках для обмена сообщений с командным менеджером</param>
-        /// <param name="planChatRepository">Репозиторий связей сборок и чатов</param>
-        /// <param name="logger">Логгер для вывода информации о внутренних процессах</param>
-        /// <param name="apiHttpClient">Клиент для отправки запроса по http</param>
-        public TelegramNotificationService(
-            MessageProducer messageProducer,
-            IOptions<TelegramNicknameService> apiOptions,
-            IOptions<JsonSerializerOptions> jsonOptions,
-            PlanChatRepository planChatRepository,
-            ILogger<TelegramNotificationService> logger,
-            ApiHttpClient apiHttpClient)
-        {
-            _jsonOptions = jsonOptions.Value;
-            _messageProducer = messageProducer;
-            _planChatRepository = planChatRepository;
-            _logger = logger;
-            _apiHttpClient = apiHttpClient;
-            _apiUrl = apiOptions.Value.ApiUrl;
-        }
+        private readonly JsonSerializerOptions _jsonOptions = jsonOptions.Value;
+        private readonly PlanChatRepository _planChatRepository = planChatRepository;
+        private readonly ApiHttpClient _apiHttpClient = apiHttpClient;
+        private readonly ILogger<TelegramNotificationService> _logger = logger;
+        private readonly MessageProducer _messageProducer = messageProducer;
+        private readonly string _apiUrl = apiOptions.Value.ApiUrl;
 
         /// <summary>
         /// Уведомляет в чат об упавшей сборке
@@ -64,9 +54,9 @@ namespace BuildNotifier.Services
             var buildKey = BambooValidator.TrimToProjectPlanName(webhookData.Build.BuildPlanName);
             var chatIds = await _planChatRepository.GetChatIdsAsync(buildKey);
 
-            if (!chatIds.Any())
+            if (chatIds.Count == 0)
             {
-                _logger.LogInformation($"Нет подписчиков на сборку {buildKey}");
+                _logger.LogInformation("Нет подписчиков на сборку {BuildKey}", buildKey);
                 return;
             }
 
@@ -75,7 +65,7 @@ namespace BuildNotifier.Services
             foreach (var chatId in chatIds)
             {
                 var botMessage = CreateBotMessage(chatId, messageText);
-                SendKafkaNotification(botMessage);
+                await SendKafkaNotification(botMessage);
             }
         }
 
@@ -91,7 +81,7 @@ namespace BuildNotifier.Services
             return FormatTelegramMessage(webhookData);
         }
 
-        private BotMessage CreateBotMessage(string chatId, string messageText)
+        private static BotMessage CreateBotMessage(string chatId, string messageText)
         {
             return new BotMessage
             {
@@ -108,10 +98,10 @@ namespace BuildNotifier.Services
             };
         }
 
-        private void SendKafkaNotification(BotMessage message)
+        private async Task SendKafkaNotification(BotMessage message)
         {
             var json = JsonSerializer.Serialize(message, _jsonOptions);
-            _messageProducer.SendRequest(json);
+            await _messageProducer.SendRequest(json);
         }
 
         private async Task<string> FindTelegramUsernameByLogin(string login)
@@ -148,7 +138,7 @@ namespace BuildNotifier.Services
 
         private static string ShortenCommitHash(string hash)
         {
-            return hash.Length > 7 ? hash.Substring(0, 7) : hash;
+            return hash.Length > 7 ? hash[..7] : hash;
         }
     }
 }

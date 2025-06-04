@@ -11,23 +11,18 @@ namespace BuildNotifier.Data.Context
     /// Использует SQLite в качестве СУБД. Строка подключения берется из конфигурации.
     /// Содержит единственную сущность <see cref="PlanChat"/> с составным ключом (PlanName + ChatId).
     /// </remarks>
-    public class AppDbContext : DbContext
+    /// <remarks>
+    /// Инициализирует новый экземпляр контекста
+    /// </remarks>
+    /// <param name="configuration">Конфигурация приложения (для получения строки подключения)</param>
+    public class AppDbContext(IConfiguration configuration) : DbContext
     {
         /// <summary>
         /// Набор данных для работы с подписками
         /// </summary>
         public DbSet<PlanChat> PlanChats { get; set; }
 
-        private readonly IConfiguration _configuration;
-
-        /// <summary>
-        /// Инициализирует новый экземпляр контекста
-        /// </summary>
-        /// <param name="configuration">Конфигурация приложения (для получения строки подключения)</param>
-        public AppDbContext(IConfiguration configuration)
-        {
-            _configuration = configuration;
-        }
+        private readonly IConfiguration _configuration = configuration;
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {

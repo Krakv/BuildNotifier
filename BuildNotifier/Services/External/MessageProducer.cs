@@ -7,35 +7,27 @@ namespace BuildNotifier.Services.External
     /// <summary>
     /// Сервис для отправки сообщений в Kafka
     /// </summary>
-    public class MessageProducer : IDisposable
+    /// <remarks>
+    /// Инициализирует новый экземпляр продюсера сообщений
+    /// </remarks>
+    /// <param name="producerConfig">Конфигурация producer для Kafka</param>
+    /// <param name="serviceRegistrationInfo">Информация о сервисе (содержит топик для отправки)</param>
+    /// <param name="logger">Логгер для записи событий</param>
+    public class MessageProducer(
+        IOptions<ProducerConfig> producerConfig,
+        ServiceRegistrationInfo serviceRegistrationInfo,
+        ILogger<MessageProducer> logger) : IDisposable
     {
-        private readonly IProducer<Null, string> _producer;
-        private readonly ServiceRegistrationInfo _serviceRegistrationInfo;
-        private readonly ILogger<MessageProducer> _logger;
-
-        /// <summary>
-        /// Инициализирует новый экземпляр продюсера сообщений
-        /// </summary>
-        /// <param name="producerConfig">Конфигурация producer для Kafka</param>
-        /// <param name="serviceRegistrationInfo">Информация о сервисе (содержит топик для отправки)</param>
-        /// <param name="logger">Логгер для записи событий</param>
-        public MessageProducer(
-            IOptions<ProducerConfig> producerConfig,
-            ServiceRegistrationInfo serviceRegistrationInfo,
-            ILogger<MessageProducer> logger)
-        {
-            _serviceRegistrationInfo = serviceRegistrationInfo ?? throw new ArgumentNullException(nameof(serviceRegistrationInfo));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-            _producer = new ProducerBuilder<Null, string>(producerConfig?.Value ?? throw new ArgumentNullException(nameof(producerConfig)))
+        private readonly IProducer<Null, string> _producer = new ProducerBuilder<Null, string>(producerConfig?.Value ?? throw new ArgumentNullException(nameof(producerConfig)))
                 .Build();
-        }
+        private readonly ServiceRegistrationInfo _serviceRegistrationInfo = serviceRegistrationInfo ?? throw new ArgumentNullException(nameof(serviceRegistrationInfo));
+        private readonly ILogger<MessageProducer> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         /// <summary>
         /// Асинхронно отправляет сообщение в Kafka
         /// </summary>
         /// <param name="message">Сообщение для отправки (в формате JSON)</param>
-        public async void SendRequest(string message)
+        public async Task SendRequest(string message)
         {
             if (string.IsNullOrEmpty(message))
             {
@@ -45,7 +37,6 @@ namespace BuildNotifier.Services.External
 
             try
             {
-                var correlationId = Guid.NewGuid().ToString();
                 var result = await _producer.ProduceAsync(
                     _serviceRegistrationInfo.ProduceTopic,
                     new Message<Null, string> { Value = message });

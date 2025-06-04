@@ -6,21 +6,15 @@ namespace BuildNotifier.Services.External
     /// <summary>
     /// Клиент для отправки запросов к API по http
     /// </summary>
-    public class ApiHttpClient
+    /// <remarks>
+    /// Клиент для отправки запросов к API по http
+    /// </remarks>
+    /// <param name="httpClient">Клиент для отправки запросов по http</param>
+    /// <param name="logger">Логгер для вывода информации о внутренних процессах</param>
+    public class ApiHttpClient(HttpClient httpClient, ILogger<ApiHttpClient> logger)
     {
-        private readonly HttpClient _httpClient;
-        private readonly ILogger<ApiHttpClient> _logger;
-
-        /// <summary>
-        /// Клиент для отправки запросов к API по http
-        /// </summary>
-        /// <param name="httpClient">Клиент для отправки запросов по http</param>
-        /// <param name="logger">Логгер для вывода информации о внутренних процессах</param>
-        public ApiHttpClient(HttpClient httpClient, ILogger<ApiHttpClient> logger)
-        {
-            _httpClient = httpClient;
-            _logger = logger;
-        }
+        private readonly HttpClient _httpClient = httpClient;
+        private readonly ILogger<ApiHttpClient> _logger = logger;
 
         /// <summary>
         /// Запрашивает username в телеграме по логину в доменной учетной записи

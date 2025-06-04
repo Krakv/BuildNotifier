@@ -168,11 +168,11 @@ namespace BuildNotifier.Services
             }
             else if (SubscriptionWithSessionCommands.Contains(command))
             {
-                await _sessionManager.CreateAndStartSessionAsync(message, stoppingToken);
+                await _sessionManager.CreateAndStartSessionAsync(message);
             }
             else
             {
-                await _sessionManager.ProcessMessageAsync(message, stoppingToken);
+                await _sessionManager.ProcessMessageAsync(message);
             }
         }
 

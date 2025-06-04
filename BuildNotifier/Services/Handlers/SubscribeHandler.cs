@@ -3,40 +3,31 @@ using BuildNotifier.Data.Repositories;
 using BuildNotifier.Services.Delegates;
 using BuildNotifier.Services.Helpers;
 
-namespace BuildNotifier.Services
+namespace BuildNotifier.Services.Handlers
 {
     /// <summary>
     /// Обработчик подписки на уведомления о сборках Bamboo
     /// </summary>
-    public class SubscribeHandler
+    /// <remarks>
+    /// Инициализирует новый экземпляр класса SubscribeHandler
+    /// </remarks>
+    /// <param name="planChatRepository">Репозиторий для работы с подписками на планы сборки</param>
+    /// <param name="logger">Логгер для записи событий</param>
+    /// <param name="sendMessage">Делегат для отправки сообщений</param>
+    /// <param name="getAnswer">Функция получения ответа от пользователя</param>
+    /// <param name="onSessionEnded">Действие, вызываемое при завершении сессии</param>
+    public class SubscribeHandler(
+        PlanChatRepository planChatRepository,
+        ILogger logger,
+        CustomDelegates.SendMessageDelegate sendMessage,
+        Func<Task<BotMessage?>> getAnswer,
+        Action<string> onSessionEnded)
     {
-        private readonly PlanChatRepository _planChatRepository;
-        private readonly ILogger _logger;
-        private readonly CustomDelegates.SendMessageDelegate _sendMessage;
-        private readonly Func<Task<BotMessage?>> _getAnswer;
-        private readonly Action<string> _onSessionEnded;
-
-        /// <summary>
-        /// Инициализирует новый экземпляр класса SubscribeHandler
-        /// </summary>
-        /// <param name="planChatRepository">Репозиторий для работы с подписками на планы сборки</param>
-        /// <param name="logger">Логгер для записи событий</param>
-        /// <param name="sendMessage">Делегат для отправки сообщений</param>
-        /// <param name="getAnswer">Функция получения ответа от пользователя</param>
-        /// <param name="onSessionEnded">Действие, вызываемое при завершении сессии</param>
-        public SubscribeHandler(
-            PlanChatRepository planChatRepository,
-            ILogger logger,
-            CustomDelegates.SendMessageDelegate sendMessage,
-            Func<Task<BotMessage?>> getAnswer,
-            Action<string> onSessionEnded)
-        {
-            _planChatRepository = planChatRepository;
-            _logger = logger;
-            _sendMessage = sendMessage;
-            _getAnswer = getAnswer;
-            _onSessionEnded = onSessionEnded;
-        }
+        private readonly PlanChatRepository _planChatRepository = planChatRepository;
+        private readonly ILogger _logger = logger;
+        private readonly CustomDelegates.SendMessageDelegate _sendMessage = sendMessage;
+        private readonly Func<Task<BotMessage?>> _getAnswer = getAnswer;
+        private readonly Action<string> _onSessionEnded = onSessionEnded;
 
         /// <summary>
         /// Обрабатывает процесс подписки на уведомления о сборках
@@ -55,7 +46,7 @@ namespace BuildNotifier.Services
                     var message = await _getAnswer();
                     if (message == null) continue;
 
-                    if (message.Data.Text.ToLower() == "close_failed_build_notifier_session")
+                    if (message.Data.Text.Equals("close_failed_build_notifier_session", StringComparison.CurrentCultureIgnoreCase))
                     {
                         HandleSessionClose(message);
                         return;
@@ -103,10 +94,10 @@ namespace BuildNotifier.Services
                 kafkaMessageId: message.KafkaMessageId,
                 inlineKeyboardMarkup: new InlineKeyboardMarkup
                 {
-                    InlineKeyboardButtons = new List<List<InlineKeyboardButton>>
-                    {
-                        new() { new InlineKeyboardButton { Text = "Отменить", CallbackData = "close_failed_build_notifier_session" } }
-                    }
+                    InlineKeyboardButtons =
+                    [
+                        [new InlineKeyboardButton { Text = "Отменить", CallbackData = "close_failed_build_notifier_session" }]
+                    ]
                 });
         }
 
@@ -119,10 +110,10 @@ namespace BuildNotifier.Services
                 kafkaMessageId: message.KafkaMessageId,
                 inlineKeyboardMarkup: new InlineKeyboardMarkup
                 {
-                    InlineKeyboardButtons = new List<List<InlineKeyboardButton>>
-                    {
-                        new() { new InlineKeyboardButton { Text = "Отменить", CallbackData = "close_failed_build_notifier_session" } }
-                    }
+                    InlineKeyboardButtons =
+                    [
+                        [new InlineKeyboardButton { Text = "Отменить", CallbackData = "close_failed_build_notifier_session" }]
+                    ]
                 });
         }
 
@@ -150,10 +141,10 @@ namespace BuildNotifier.Services
                 inlineKeyboardMarkup: !isSaved ?
                 new InlineKeyboardMarkup
                 {
-                    InlineKeyboardButtons = new List<List<InlineKeyboardButton>>
-                    {
-                        new() { new InlineKeyboardButton { Text = "Отменить", CallbackData = "close_failed_build_notifier_session" } }
-                    }
+                    InlineKeyboardButtons =
+                    [
+                        [new InlineKeyboardButton { Text = "Отменить", CallbackData = "close_failed_build_notifier_session" }]
+                    ]
                 }
                 : null
                 );

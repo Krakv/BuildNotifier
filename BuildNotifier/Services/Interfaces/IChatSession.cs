@@ -1,4 +1,5 @@
 ﻿using BuildNotifier.Data.Models.Bot;
+using BuildNotifier.Services.Delegates;
 using System.Runtime.CompilerServices;
 
 namespace BuildNotifier.Services.Interfaces

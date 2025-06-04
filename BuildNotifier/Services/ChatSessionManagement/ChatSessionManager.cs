@@ -1,6 +1,7 @@
 ﻿using BuildNotifier.Data.Models.Bot;
 using BuildNotifier.Services.External;
 using BuildNotifier.Services.Interfaces;
+using Confluent.Kafka;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
@@ -9,25 +10,18 @@ namespace BuildNotifier.Services.ChatSessionManagement
     /// <summary>
     /// Менеджер для управления жизненным циклом сессий в чатах
     /// </summary>
-    public class ChatSessionManager
+    /// <remarks>
+    /// Менеджер для управления жизненным циклом сессий в чатах
+    /// </remarks>
+    /// <param name="sessionFactory">Фабрика для создания сессий</param>
+    /// <param name="logger">Логгер</param>
+    /// <param name="messageProducer">Сервис отправки сообщений в Kafka</param>
+    public class ChatSessionManager(IChatSessionFactory sessionFactory, ILogger<ChatSessionManager> logger, MessageProducer messageProducer)
     {
         private readonly ConcurrentDictionary<string, ChatSessionWithCancellation> _activeSessions = new();
-        private readonly IChatSessionFactory _sessionFactory;
-        private readonly ILogger<ChatSessionManager> _logger;
-        private readonly MessageProducer _messageProducer;
-
-        /// <summary>
-        /// Менеджер для управления жизненным циклом сессий в чатах
-        /// </summary>
-        /// <param name="sessionFactory">Фабрика для создания сессий</param>
-        /// <param name="logger">Логгер</param>
-        /// <param name="messageProducer">Сервис отправки сообщений в Kafka</param>
-        public ChatSessionManager(IChatSessionFactory sessionFactory, ILogger<ChatSessionManager> logger, MessageProducer messageProducer)
-        {
-            _sessionFactory = sessionFactory;
-            _logger = logger;
-            _messageProducer = messageProducer;
-        }
+        private readonly IChatSessionFactory _sessionFactory = sessionFactory;
+        private readonly ILogger<ChatSessionManager> _logger = logger;
+        private readonly MessageProducer _messageProducer = messageProducer;
 
         /// <summary>
         /// Обрабатывает входящее сообщение для существующей сессии
@@ -37,7 +31,7 @@ namespace BuildNotifier.Services.ChatSessionManagement
         /// <remarks>
         /// Отправляет сообщения только в существующую сессию чата
         /// </remarks>
-        public async Task ProcessMessageAsync(BotMessage message, CancellationToken cancellationToken)
+        public async Task ProcessMessageAsync(BotMessage message)
         {
             if (_activeSessions.TryGetValue(message.Data.ChatId, out var sessionWithCancellation))
             {
@@ -46,7 +40,7 @@ namespace BuildNotifier.Services.ChatSessionManagement
             }
             else
             {
-                _messageProducer.SendRequest(GetNonexistentSessionResponse(message));
+                await _messageProducer.SendRequest(GetNonexistentSessionResponse(message));
                 _logger.LogWarning($"Нет активной сессии для чата: {message.Data.ChatId}.");
             }
         }
@@ -61,13 +55,10 @@ namespace BuildNotifier.Services.ChatSessionManagement
         /// - OnSendMessage: перенаправляет сообщения в messageProducer
         /// - OnSessionEnded: автоматически останавливает сессию
         /// </remarks>
-        public async Task CreateAndStartSessionAsync(BotMessage message, CancellationToken cancellationToken)
+        public async Task CreateAndStartSessionAsync(BotMessage message)
         {
             var session = _sessionFactory.CreateSession();
-            session.OnSendMessage += (botMessage) =>
-            {
-                _messageProducer.SendRequest(botMessage);
-            };
+            session.OnSendMessage += SendRequestToKafka;
             session.OnSessionEnded += (id) =>
             {
                 _ = StopSessionAsync(id);
@@ -130,6 +121,11 @@ namespace BuildNotifier.Services.ChatSessionManagement
             };
 
             return JsonSerializer.Serialize(responseMessage);
+        }
+
+        private async void SendRequestToKafka(string botMessage)
+        {
+            await _messageProducer.SendRequest(botMessage);
         }
     }
 }

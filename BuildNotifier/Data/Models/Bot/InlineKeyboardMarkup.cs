@@ -19,6 +19,6 @@ namespace BuildNotifier.Data.Models.Bot
         /// По умолчанию - пустая коллекция.
         /// </value>
         [JsonPropertyName("inline_keyboard")]
-        public List<List<InlineKeyboardButton>> InlineKeyboardButtons { get; set; } = new();
+        public List<List<InlineKeyboardButton>> InlineKeyboardButtons { get; set; } = [];
     }
 }
