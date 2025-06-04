@@ -13,7 +13,6 @@ namespace BuildNotifier.Data.Models.Bot
         /// <value>
         /// Строка с текстом кнопки. По умолчанию - пустая строка.
         /// </value>
-        [JsonPropertyName("text")]
         public string Text { get; set; } = string.Empty;
 
         /// <summary>
@@ -22,7 +21,6 @@ namespace BuildNotifier.Data.Models.Bot
         /// <value>
         /// Строка с URL или null, если кнопка не ссылочная.
         /// </value>
-        [JsonPropertyName("url")]
         public string? Url { get; set; }
 
         /// <summary>

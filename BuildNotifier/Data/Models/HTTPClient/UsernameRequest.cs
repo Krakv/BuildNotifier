@@ -11,7 +11,6 @@ namespace BuildNotifier.Data.Models.HTTPClient
         /// Получает или задает логин в доменной учетной записи
         /// </summary>
         /// <value>Логин в доменной учетной записи.</value>
-        [JsonPropertyName("username")]
         public required string Username { get; set; }
     }
 }

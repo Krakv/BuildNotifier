@@ -10,10 +10,6 @@ using BuildNotifier.Services.Interfaces;
 using BuildNotifier.Services.Startup;
 using Confluent.Kafka;
 using System.Collections.Concurrent;
-using System.Text;
-using System.Text.Encodings.Web;
-using System.Text.Json;
-using System.Text.Unicode;
 
 var preBuilderConfig = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
@@ -83,11 +79,6 @@ static void ConfigureServices(IServiceCollection services, ServiceRegistrationIn
     services.Configure<ProducerConfig>(configuration.GetSection("Kafka:ProducerConfig:Default"));
     services.Configure<TelegramNicknameService>(configuration.GetSection("TelegramNicknameService"));
     services.Configure<KafkaTopics>(configuration.GetSection("Kafka:Topics"));
-    services.Configure<JsonSerializerOptions>(options =>
-    {
-        options.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
-        options.WriteIndented = true; 
-    });
 
     services.AddDbContextFactory<AppDbContext>();
 

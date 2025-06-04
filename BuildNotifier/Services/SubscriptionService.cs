@@ -334,7 +334,7 @@ namespace BuildNotifier.Services
                 }
             };
 
-            var json = System.Text.Json.JsonSerializer.Serialize(botMessage);
+            var json = System.Text.Json.JsonSerializer.Serialize(botMessage, JsonSettings.DefaultOptions);
             await _messageProducer.SendRequest(json);
         }
     }

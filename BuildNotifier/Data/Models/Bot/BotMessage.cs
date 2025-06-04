@@ -18,7 +18,6 @@ namespace BuildNotifier.Data.Models.Bot
         /// Строка с названием метода (Пример: "sendmessage").
         /// По умолчанию - пустая строка.
         /// </value>
-        [JsonPropertyName("method")]
         public string Method { get; set; } = string.Empty;
 
         /// <summary>
@@ -27,7 +26,6 @@ namespace BuildNotifier.Data.Models.Bot
         /// <value>
         /// Строка с именем файла или null, если файл не прилагается.
         /// </value>
-        [JsonPropertyName("filename")]
         public string? Filename { get; set; }
 
         /// <summary>
@@ -37,7 +35,6 @@ namespace BuildNotifier.Data.Models.Bot
         /// Объект <see cref="MessageData"/> с содержимым сообщения.
         /// Обязательное поле (вызывает NullReferenceException, если не инициализировано).
         /// </value>
-        [JsonPropertyName("data")]
         public MessageData Data { get; set; } = null!;
 
         /// <summary>
@@ -47,7 +44,6 @@ namespace BuildNotifier.Data.Models.Bot
         /// Строка с ID сообщения Kafka.
         /// По умолчанию - пустая строка.
         /// </value>
-        [JsonPropertyName("kafkaMessageId")]
         public string KafkaMessageId { get; set; } = string.Empty;
 
         /// <summary>
@@ -57,7 +53,6 @@ namespace BuildNotifier.Data.Models.Bot
         /// Строка со статусом (COMPLETED, IN_PROGRESS),
         /// или null, если статус не применим.
         /// </value>
-        [JsonPropertyName("status")]
         public string? Status { get; set; }
     }
 }

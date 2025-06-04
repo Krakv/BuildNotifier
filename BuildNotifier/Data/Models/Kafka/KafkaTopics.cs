@@ -14,7 +14,6 @@ namespace BuildNotifier.Data.Models.Kafka
         /// Топик Kafka в виде строки.
         /// По умолчанию принимает значение пустой строки.
         /// </value>
-        [JsonPropertyName("WebhookTopic")]
         public string WebhookTopic { get; set; } = string.Empty;
     }
 }

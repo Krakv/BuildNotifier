@@ -1,4 +1,5 @@
 ﻿using BuildNotifier.Data.Models.ServiceRegistration;
+using BuildNotifier.Services.Helpers;
 using Confluent.Kafka;
 using System.Text.Json;
 
@@ -47,7 +48,7 @@ namespace BuildNotifier.Services.Startup
                 {
                     try
                     {
-                        var json = JsonSerializer.Serialize(_serviceDescription);
+                        var json = JsonSerializer.Serialize(_serviceDescription, JsonSettings.DefaultOptions);
                         var message = new Message<Null, string> { Value = json };
 
                         var deliveryResult = await _producer.ProduceAsync("service-info-request", message);
@@ -64,7 +65,7 @@ namespace BuildNotifier.Services.Startup
                                 {
                                     Console.WriteLine($"Получено сообщение от {receiptResult.Topic}.");
 
-                                    var serviceRegistrationInfo = JsonSerializer.Deserialize<ServiceRegistrationInfo>(receiptResult.Message.Value);
+                                    var serviceRegistrationInfo = JsonSerializer.Deserialize<ServiceRegistrationInfo>(receiptResult.Message.Value, JsonSettings.DefaultOptions);
 
                                     if (serviceRegistrationInfo?.ServiceName == _serviceDescription.Name)
                                     { 

@@ -3,6 +3,7 @@ using BuildNotifier.Data.Repositories;
 using BuildNotifier.Services.Handlers;
 using BuildNotifier.Services.Interfaces;
 using BuildNotifier.Services.Delegates;
+using BuildNotifier.Services.Helpers;
 using System.Text.Json;
 using System.Threading.Channels;
 
@@ -138,7 +139,7 @@ namespace BuildNotifier.Services
                 }
             };
 
-            OnSendMessage?.Invoke(JsonSerializer.Serialize(botMessage));
+            OnSendMessage?.Invoke(JsonSerializer.Serialize(botMessage, JsonSettings.DefaultOptions));
         }
 
         private async Task CheckInactivityAsync()

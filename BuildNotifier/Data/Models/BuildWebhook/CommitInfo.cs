@@ -13,7 +13,6 @@ namespace BuildNotifier.Data.Models.BambooWebhookPayload
         /// <value>
         /// Строка с хешем коммита. Обязательное поле.
         /// </value>
-        [JsonPropertyName("hash")]
         public required string Hash { get; set; }
 
         /// <summary>
@@ -22,7 +21,6 @@ namespace BuildNotifier.Data.Models.BambooWebhookPayload
         /// <value>
         /// Строка с логином автора. Обязательное поле.
         /// </value>
-        [JsonPropertyName("author")]
         public required string Author { get; set; }
 
         /// <summary>
@@ -31,7 +29,6 @@ namespace BuildNotifier.Data.Models.BambooWebhookPayload
         /// <value>
         /// Строка с сообщением коммита. Обязательное поле.
         /// </value>
-        [JsonPropertyName("message")]
         public required string Message { get; set; }
     }
 

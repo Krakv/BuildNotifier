@@ -27,12 +27,10 @@ namespace BuildNotifier.Services
     public class TelegramNotificationService(
         MessageProducer messageProducer,
         IOptions<TelegramNicknameService> apiOptions,
-        IOptions<JsonSerializerOptions> jsonOptions,
         PlanChatRepository planChatRepository,
         ILogger<TelegramNotificationService> logger,
         ApiHttpClient apiHttpClient)
     {
-        private readonly JsonSerializerOptions _jsonOptions = jsonOptions.Value;
         private readonly PlanChatRepository _planChatRepository = planChatRepository;
         private readonly ApiHttpClient _apiHttpClient = apiHttpClient;
         private readonly ILogger<TelegramNotificationService> _logger = logger;
@@ -100,7 +98,7 @@ namespace BuildNotifier.Services
 
         private async Task SendKafkaNotification(BotMessage message)
         {
-            var json = JsonSerializer.Serialize(message, _jsonOptions);
+            var json = JsonSerializer.Serialize(message, JsonSettings.DefaultOptions);
             await _messageProducer.SendRequest(json);
         }
 

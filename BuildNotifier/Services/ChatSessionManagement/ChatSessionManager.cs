@@ -1,5 +1,6 @@
 ﻿using BuildNotifier.Data.Models.Bot;
 using BuildNotifier.Services.External;
+using BuildNotifier.Services.Helpers;
 using BuildNotifier.Services.Interfaces;
 using Confluent.Kafka;
 using System.Collections.Concurrent;
@@ -120,7 +121,7 @@ namespace BuildNotifier.Services.ChatSessionManagement
                 }
             };
 
-            return JsonSerializer.Serialize(responseMessage);
+            return JsonSerializer.Serialize(responseMessage, JsonSettings.DefaultOptions);
         }
 
         private async void SendRequestToKafka(string botMessage)

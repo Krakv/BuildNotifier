@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using BuildNotifier.Services.Helpers;
+using System.Text.Json;
 
 namespace BuildNotifier.Services.Utilites
 {
@@ -26,7 +27,7 @@ namespace BuildNotifier.Services.Utilites
             result = default;
             try
             {
-                result = JsonSerializer.Deserialize<T>(json);
+                result = JsonSerializer.Deserialize<T>(json, JsonSettings.DefaultOptions);
                 return result != null;
             }
             catch (JsonException)

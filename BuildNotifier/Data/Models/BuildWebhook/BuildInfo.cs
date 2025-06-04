@@ -13,7 +13,6 @@ namespace BuildNotifier.Data.Models.BambooWebhookPayload
         /// <value>
         /// Строка с идентификатором сборки. Обязательное поле.
         /// </value>
-        [JsonPropertyName("buildResultKey")]
         public required string BuildResultKey { get; set; }
 
         /// <summary>
@@ -22,7 +21,6 @@ namespace BuildNotifier.Data.Models.BambooWebhookPayload
         /// <value>
         /// Строка со статусом (например, "SUCCESS", "FAILED"). Обязательное поле.
         /// </value>
-        [JsonPropertyName("status")]
         public required string Status { get; set; }
 
         /// <summary>
@@ -31,7 +29,6 @@ namespace BuildNotifier.Data.Models.BambooWebhookPayload
         /// <value>
         /// Строка с названием конфигурации сборки. Обязательное поле.
         /// </value>
-        [JsonPropertyName("buildPlanName")]
         public required string BuildPlanName { get; set; }
     }
 }

@@ -17,7 +17,6 @@ namespace BuildNotifier.Data.Models.BambooWebhookPayload
         /// <value>
         /// Строка с названием сервиса. Обязательное поле.
         /// </value>
-        [JsonPropertyName("serviceName")]
         public required string ServiceName { get; set; }
 
         /// <summary>
@@ -26,7 +25,6 @@ namespace BuildNotifier.Data.Models.BambooWebhookPayload
         /// <value>
         /// UUID в строковом формате. Обязательное поле.
         /// </value>
-        [JsonPropertyName("uuid")]
         public required string Uuid { get; set; }
 
         /// <summary>
@@ -35,7 +33,6 @@ namespace BuildNotifier.Data.Models.BambooWebhookPayload
         /// <value>
         /// Строка с URL Git-репозитория. Обязательное поле.
         /// </value>
-        [JsonPropertyName("repositoryUrl")]
         public required string RepositoryUrl { get; set; }
 
         /// <summary>
@@ -44,7 +41,6 @@ namespace BuildNotifier.Data.Models.BambooWebhookPayload
         /// <value>
         /// Строка с названием ветки. Обязательное поле.
         /// </value>
-        [JsonPropertyName("branchName")]
         public required string BranchName { get; set; }
 
         /// <summary>
@@ -53,7 +49,6 @@ namespace BuildNotifier.Data.Models.BambooWebhookPayload
         /// <value>
         /// Объект <see cref="CommitInfo"/> с деталями коммита. Обязательное поле.
         /// </value>
-        [JsonPropertyName("commit")]
         public required CommitInfo Commit { get; set; }
 
         /// <summary>
@@ -62,7 +57,6 @@ namespace BuildNotifier.Data.Models.BambooWebhookPayload
         /// <value>
         /// Объект <see cref="BuildInfo"/> с деталями сборки. Обязательное поле.
         /// </value>
-        [JsonPropertyName("build")]
         public required BuildInfo Build { get; set; }
 
         /// <summary>
@@ -71,7 +65,6 @@ namespace BuildNotifier.Data.Models.BambooWebhookPayload
         /// <value>
         /// Строка с временем события. Обязательное поле.
         /// </value>
-        [JsonPropertyName("time")]
         public required string Time { get; set; }
     }
 

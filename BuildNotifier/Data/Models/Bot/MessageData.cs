@@ -25,7 +25,6 @@ namespace BuildNotifier.Data.Models.Bot
         /// <value>
         /// Строка с текстом сообщения. По умолчанию - пустая строка.
         /// </value>
-        [JsonPropertyName("text")]
         public string Text { get; set; } = string.Empty;
 
         /// <summary>
@@ -35,7 +34,6 @@ namespace BuildNotifier.Data.Models.Bot
         /// Строка с названием метода (Пример: "sendMessage").
         /// По умолчанию - пустая строка.
         /// </value>
-        [JsonPropertyName("method")]
         public string Method { get; set; } = string.Empty;
 
         /// <summary>
