@@ -164,8 +164,13 @@ namespace BuildNotifier.Services
 
             if (SubscriptionCommands.Contains(command))
             {
-                var task = _subscriptionService.ProcessCommand(message.Data.ChatId, commandText, message.KafkaMessageId);
-                task.Start();
+                var _ = _subscriptionService.ProcessCommand(message.Data.ChatId, commandText, message.KafkaMessageId).ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                    {
+                        _logger.LogError("Ошибка во время обработки команды.");
+                    }
+                }, TaskScheduler.Default);
             }
             else if (SubscriptionWithSessionCommands.Contains(command))
             {
@@ -181,8 +186,13 @@ namespace BuildNotifier.Services
         {
             try
             {
-                var task = _telegramNotificationService.NotifyFailedBuildAsync(payload);
-                task.Start();
+                var _ = _telegramNotificationService.NotifyFailedBuildAsync(payload).ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                    {
+                        _logger.LogError("Ошибка во время обработки вебхука.");
+                    }
+                }, TaskScheduler.Default);
             }
             catch (Exception ex)
             {
