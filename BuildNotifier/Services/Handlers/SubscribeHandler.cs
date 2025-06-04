@@ -90,7 +90,7 @@ namespace BuildNotifier.Services.Handlers
             _sendMessage(
                 "Введите название плана сборки в формате " +
                 "[Project \\- Plan](https://drive.google.com/file/d/1uZR6zDXhMe19hd1Y0OfhoxPExIiiGQyg/view?usp=sharing) " +
-                "\\([?](https://confluence.atlassian.com/bamboo/bamboo-variables-289277087.html#:~:text=Some%20job%20name-,bamboo.planName,-The%20current%20plan%27s)\\) \\(Без кавычек\\)",
+                "\\([?](https://confluence.atlassian.com/bamboo/bamboo-variables-289277087.html#:~:text=Some%20job%20name-,bamboo.planName,-The%20current%20plan%27s)\\)",
                 message.Data.ChatId,
                 status: "IN_PROGRESS",
                 parseMode: "MarkdownV2",
