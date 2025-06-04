@@ -41,8 +41,8 @@ namespace BuildNotifier.Services
         /// Уведомляет в чат об упавшей сборке
         /// </summary>
         /// <param name="webhookData">Информация о сборке</param>
-        public async void NotifyFailedBuildAsync(BuildWebhook webhookData)
-        {
+        public async Task NotifyFailedBuildAsync(BuildWebhook webhookData)
+        {   
             if (string.IsNullOrEmpty(webhookData.Uuid))
             {
                 _logger.LogWarning("Получен вебхук с пустым UUID");

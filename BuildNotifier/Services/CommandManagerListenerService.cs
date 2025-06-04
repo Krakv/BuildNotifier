@@ -164,7 +164,8 @@ namespace BuildNotifier.Services
 
             if (SubscriptionCommands.Contains(command))
             {
-                _subscriptionService.ProcessCommand(message.Data.ChatId, commandText, message.KafkaMessageId);
+                var task = _subscriptionService.ProcessCommand(message.Data.ChatId, commandText, message.KafkaMessageId);
+                task.Start();
             }
             else if (SubscriptionWithSessionCommands.Contains(command))
             {
@@ -180,7 +181,8 @@ namespace BuildNotifier.Services
         {
             try
             {
-                _telegramNotificationService.NotifyFailedBuildAsync(payload);
+                var task = _telegramNotificationService.NotifyFailedBuildAsync(payload);
+                task.Start();
             }
             catch (Exception ex)
             {

@@ -32,7 +32,7 @@ namespace BuildNotifier.Services
         /// <param name="chatId">ID чата Telegram</param>
         /// <param name="commandText">Текст команды</param>
         /// <param name="kafkaMessageId">ID сообщения Kafka</param>
-        public async void ProcessCommand(string chatId, string commandText, string kafkaMessageId)
+        public async Task ProcessCommand(string chatId, string commandText, string kafkaMessageId)
         {
             var parts = commandText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var command = parts[0].ToLowerInvariant();

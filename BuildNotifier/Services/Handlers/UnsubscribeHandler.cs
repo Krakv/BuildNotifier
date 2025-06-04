@@ -91,7 +91,7 @@ namespace BuildNotifier.Services.Handlers
                             break;
 
                         case "failed_build_notifier_unsub_all":
-                            HandleUnsubscribeAll(message);
+                            await HandleUnsubscribeAll(message);
                             return;
 
                         case "close_failed_build_notifier_session":
@@ -99,7 +99,7 @@ namespace BuildNotifier.Services.Handlers
                             return;
 
                         default:
-                            HandlePlanUnsubscribe(message, state, cancellationToken);
+                            await HandlePlanUnsubscribe(message, state, cancellationToken);
                             break;
                     }
                 }
@@ -124,7 +124,7 @@ namespace BuildNotifier.Services.Handlers
             }
         }
 
-        private async void HandleUnsubscribeAll(BotMessage message)
+        private async Task HandleUnsubscribeAll(BotMessage message)
         {
             if (await _planChatRepository.DeleteAllPlansFromChatAsync(message.Data.ChatId))
             {
@@ -150,7 +150,7 @@ namespace BuildNotifier.Services.Handlers
                 kafkaMessageId: message.KafkaMessageId);
         }
 
-        private async void HandlePlanUnsubscribe(BotMessage message, PaginationState state, CancellationToken cancellationToken)
+        private async Task HandlePlanUnsubscribe(BotMessage message, PaginationState state, CancellationToken cancellationToken)
         {
             if (!message.Data.Text.StartsWith("failed_build_notifier_option_")) return;
 
