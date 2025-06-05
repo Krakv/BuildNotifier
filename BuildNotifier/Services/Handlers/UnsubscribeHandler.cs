@@ -8,35 +8,26 @@ namespace BuildNotifier.Services.Handlers
     /// <summary>
     /// Обработчик для управления отпиской от уведомлений о сборках Bamboo
     /// </summary>
-    public class UnsubscribeHandler
+    /// <remarks>
+    /// Инициализирует новый экземпляр обработчика отписки
+    /// </remarks>
+    /// <param name="planChatRepository">Репозиторий для работы с подписками</param>
+    /// <param name="logger">Логгер для записи событий</param>
+    /// <param name="sendMessage">Делегат для отправки сообщений</param>
+    /// <param name="getAnswer">Функция получения ответа пользователя</param>
+    /// <param name="onSessionEnded">Действие при завершении сессии</param>
+    public class UnsubscribeHandler(
+        PlanChatRepository planChatRepository,
+        ILogger logger,
+        CustomDelegates.SendMessageDelegate sendMessage,
+        Func<Task<BotMessage?>> getAnswer,
+        Action<string> onSessionEnded)
     {
-        private readonly PlanChatRepository _planChatRepository;
-        private readonly ILogger _logger;
-        private readonly CustomDelegates.SendMessageDelegate _sendMessage;
-        private readonly Func<Task<BotMessage?>> _getAnswer;
-        private readonly Action<string> _onSessionEnded;
-
-        /// <summary>
-        /// Инициализирует новый экземпляр обработчика отписки
-        /// </summary>
-        /// <param name="planChatRepository">Репозиторий для работы с подписками</param>
-        /// <param name="logger">Логгер для записи событий</param>
-        /// <param name="sendMessage">Делегат для отправки сообщений</param>
-        /// <param name="getAnswer">Функция получения ответа пользователя</param>
-        /// <param name="onSessionEnded">Действие при завершении сессии</param>
-        public UnsubscribeHandler(
-            PlanChatRepository planChatRepository,
-            ILogger logger,
-            CustomDelegates.SendMessageDelegate sendMessage,
-            Func<Task<BotMessage?>> getAnswer,
-            Action<string> onSessionEnded)
-        {
-            _planChatRepository = planChatRepository;
-            _logger = logger;
-            _sendMessage = sendMessage;
-            _getAnswer = getAnswer;
-            _onSessionEnded = onSessionEnded;
-        }
+        private readonly PlanChatRepository _planChatRepository = planChatRepository;
+        private readonly ILogger _logger = logger;
+        private readonly CustomDelegates.SendMessageDelegate _sendMessage = sendMessage;
+        private readonly Func<Task<BotMessage?>> _getAnswer = getAnswer;
+        private readonly Action<string> _onSessionEnded = onSessionEnded;
 
         /// <summary>
         /// Обрабатывает процесс отписки от уведомлений о сборках
@@ -49,7 +40,7 @@ namespace BuildNotifier.Services.Handlers
             try
             {
                 var allPlanNames = await _planChatRepository.GetPlanNamesAsync(initialMessage.Data.ChatId);
-                if (!allPlanNames.Any())
+                if (allPlanNames.Count == 0)
                 {
                     _sendMessage("У вас нет активных подписок.", 
                         initialMessage.Data.ChatId, 
@@ -99,7 +90,7 @@ namespace BuildNotifier.Services.Handlers
                             return;
 
                         default:
-                            await HandlePlanUnsubscribe(message, state, cancellationToken);
+                            await HandlePlanUnsubscribe(message, state);
                             break;
                     }
                 }
@@ -150,7 +141,7 @@ namespace BuildNotifier.Services.Handlers
                 kafkaMessageId: message.KafkaMessageId);
         }
 
-        private async Task HandlePlanUnsubscribe(BotMessage message, PaginationState state, CancellationToken cancellationToken)
+        private async Task HandlePlanUnsubscribe(BotMessage message, PaginationState state)
         {
             if (!message.Data.Text.StartsWith("failed_build_notifier_option_")) return;
 
@@ -178,7 +169,7 @@ namespace BuildNotifier.Services.Handlers
                 status: "IN_PROGRESS",
                 kafkaMessageId: message.KafkaMessageId);
 
-            if (!state.AllPlanNames.Any())
+            if (state.AllPlanNames.Count == 0)
             {
                 _sendMessage("У вас больше нет активных подписок.",
                     message.Data.ChatId,
@@ -212,14 +203,13 @@ namespace BuildNotifier.Services.Handlers
             optionKey = 'A';
             foreach (var planName in pagePlanNames)
             {
-                buttons.Add(new List<InlineKeyboardButton>
-                {
-                    new InlineKeyboardButton
-                    {
+                buttons.Add(
+                [
+                    new() {
                         Text = planName,
                         CallbackData = $"failed_build_notifier_option_{optionKey++}"
                     }
-                });
+                ]);
             }
 
             if (state.TotalPages > 1)
@@ -232,11 +222,11 @@ namespace BuildNotifier.Services.Handlers
                 buttons.Add(navButtons);
             }
 
-            buttons.Add(new List<InlineKeyboardButton>
-            {
-                new InlineKeyboardButton { Text = "Отписаться от всех", CallbackData = "failed_build_notifier_unsub_all" },
-                new InlineKeyboardButton { Text = "Завершить", CallbackData = "close_failed_build_notifier_session" }
-            });
+            buttons.Add(
+            [
+                new() { Text = "Отписаться от всех", CallbackData = "failed_build_notifier_unsub_all" },
+                new() { Text = "Завершить", CallbackData = "close_failed_build_notifier_session" }
+            ]);
 
             _sendMessage($"{instruction}\n{pageInfo}",
                 message.Data.ChatId,
