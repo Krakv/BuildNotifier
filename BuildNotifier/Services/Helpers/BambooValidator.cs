@@ -77,13 +77,25 @@ namespace BuildNotifier.Services.Helpers
         }
 
         /// <summary>
-        /// Удаляет часть строки, содержащую email в угловых скобках, оставляя только имя/логин.
+        /// Извлекает первую часть email (до символа '@') из строки формата "Имя <email@domain.com>"
         /// </summary>
-        /// <param name="input">Входная строка, возможно содержащая email</param>
-        /// <returns>Строка без email-части</returns>
-        public static string RemoveEmail(string input)
+        /// <param name="input">Входная строка, например: "Иван Петров <ivan@gmail.com>"</param>
+        /// <returns>Первая часть email или пустая строка, если email не найден</returns>
+        public static string GetEmailFirstPart(string input)
         {
-            return Regex.Replace(input, @"\s*<.*?>", "").Trim();
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return string.Empty;
+            }
+
+            Match match = Regex.Match(input, @"<([^@]+)");
+
+            if (match.Success)
+            {
+                return match.Groups[1].Value;
+            }
+
+            return string.Empty;
         }
     }
 }

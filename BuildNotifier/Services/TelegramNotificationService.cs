@@ -69,7 +69,7 @@ namespace BuildNotifier.Services
 
         private async Task<string> BuildNotificationMessage(BuildWebhook webhookData)
         {
-            var authorLogin = BambooValidator.RemoveEmail(webhookData.Commit.Author);
+            var authorLogin = BambooValidator.GetEmailFirstPart(webhookData.Commit.Author);
             var username = await FindTelegramUsernameByLogin(authorLogin);
             if (username != "")
             {
